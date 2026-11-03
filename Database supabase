@@ -1,0 +1,337 @@
+-- ╔═══════════════════════════════════════════════════════════════════╗
+-- ║  RENRENHUB v5.0 — STANDALONE SUPABASE TRACKER                      ║
+-- ║  Langsung execute. Tanpa loader, tanpa GUI, tanpa dependencies.    ║
+-- ╚═══════════════════════════════════════════════════════════════════╝
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 1. CONFIG — edit bagian ini saja
+-- ─────────────────────────────────────────────────────────────────────
+local CONFIG = {
+    SupabaseURL      = "https://xtijiyyzqbxsfkeojoiv.supabase.co",
+    SupabaseAnonKey  = "sb_publishable_Q0NI8ivUUphG9spGL-0cFw_yJg__s75",  -- ← paste anon key
+
+    ScriptName       = "RENRENHUB",     -- nama script untuk tabel executes
+    HeartbeatInterval = 30,             -- detik antar heartbeat
+    FullPushInterval  = 300,            -- detik antar full upsert
+    SessionTimeout    = 180,            -- dianggap stale setelah N detik
+    EnableTracking    = true,           -- set false untuk disable track execute
+    EnableJoinAPI     = true,           -- expose _G.REN.join / _G.REN.list
+    Verbose           = true,           -- print log ke console
+}
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 2. SERVICES & PLAYER
+-- ─────────────────────────────────────────────────────────────────────
+local Players           = game:GetService("Players")
+local HttpService       = game:GetService("HttpService")
+local TeleportService   = game:GetService("TeleportService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local player = Players.LocalPlayer
+if not player then
+    return warn("[REN] LocalPlayer tidak tersedia (bukan di client)")
+end
+
+local sessionId = tostring(player.UserId)
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 3. INTERNAL STATE
+-- ─────────────────────────────────────────────────────────────────────
+local State = {
+    lastFullPush       = 0,
+    sessionDeleted     = false,
+    heartbeatInFlight  = false,
+    heartbeatQueued    = false,
+    trackCache         = {},
+    joinedAt           = os.time(),
+}
+
+local function log(...)
+    if CONFIG.Verbose then print("[REN]", ...) end
+end
+
+local function warnLog(...)
+    warn("[REN]", ...)
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 4. UTILITIES
+-- ─────────────────────────────────────────────────────────────────────
+local function getGameName()
+    local ok, info = pcall(function()
+        return MarketplaceService:GetProductInfo(game.PlaceId)
+    end)
+    if ok and type(info) == "table" and info.Name then
+        return info.Name
+    end
+    return "Unknown Game"
+end
+
+local function safeDecode(body)
+    if type(body) ~= "string" or body == "" then return nil end
+    local ok, data = pcall(function()
+        return HttpService:JSONDecode(body)
+    end)
+    return ok and data or nil
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 5. SUPABASE HTTP WRAPPER
+-- ─────────────────────────────────────────────────────────────────────
+local function supabaseReq(method, path, body, prefer)
+    local headers = {
+        apikey           = CONFIG.SupabaseAnonKey,
+        Authorization    = "Bearer " .. CONFIG.SupabaseAnonKey,
+        ["Content-Type"] = "application/json",
+        Prefer           = prefer or "return=minimal",
+    }
+    local opts = {
+        Url     = CONFIG.SupabaseURL .. "/rest/v1" .. path,
+        Method  = method,
+        Headers = headers,
+    }
+    if body ~= nil then
+        opts.Body = HttpService:JSONEncode(body)
+    end
+
+    local ok, res = pcall(function()
+        return HttpService:RequestAsync(opts)
+    end)
+    if ok and res and res.Success then
+        return true, res.Body or "{}"
+    end
+    local err = (ok and res and res.StatusMessage) or tostring(res)
+    return false, err
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 6. SESSION UPSERT (full push)
+-- ─────────────────────────────────────────────────────────────────────
+local function doFullPush()
+    local now   = os.time()
+    local jobId = game.JobId ~= "" and game.JobId or "Studio"
+    local place = tostring(game.PlaceId)
+
+    local ok, err = supabaseReq("POST", "/sessions", {
+        session_id  = sessionId,
+        username    = player.Name,
+        user_id     = player.UserId,
+        place_id    = tonumber(place),
+        job_id      = jobId,
+        game_name   = getGameName(),
+        join_url    = "https://www.roblox.com/games/start?placeId="
+                      .. place .. "&gameInstanceId=" .. jobId,
+        profile_url = "https://www.roblox.com/users/" .. player.UserId .. "/profile",
+        executor    = (identifyexecutor and identifyexecutor()) or "Unknown",
+        status      = "active",
+        timestamp   = now,
+    }, "resolution=merge-duplicates,return=minimal")
+
+    if ok then
+        State.lastFullPush = now
+        log("📊 Session upsert OK")
+    else
+        warnLog("❌ Session upsert failed:", err)
+    end
+    return ok
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 7. HEARTBEAT (throttled, no drop)
+-- ─────────────────────────────────────────────────────────────────────
+local function heartbeat()
+    if State.heartbeatInFlight then
+        State.heartbeatQueued = true
+        return
+    end
+    State.heartbeatInFlight = true
+
+    task.spawn(function()
+        pcall(function()
+            local now = os.time()
+            if now - State.lastFullPush >= CONFIG.FullPushInterval then
+                doFullPush()
+            else
+                local ok, err = supabaseReq(
+                    "PATCH",
+                    "/sessions?session_id=eq." .. sessionId,
+                    { timestamp = now }
+                )
+                if not ok then warnLog("⚠️ Heartbeat failed:", err) end
+            end
+        end)
+        State.heartbeatInFlight = false
+        if State.heartbeatQueued then
+            State.heartbeatQueued = false
+            heartbeat()
+        end
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 8. DELETE SESSION
+-- ─────────────────────────────────────────────────────────────────────
+local function deleteSession()
+    if State.sessionDeleted then return end
+    State.sessionDeleted = true
+
+    task.spawn(function()
+        pcall(function()
+            local ok = supabaseReq(
+                "DELETE",
+                "/sessions?session_id=eq." .. sessionId
+            )
+            if not ok then
+                -- fallback: tandai stale
+                supabaseReq("PATCH",
+                    "/sessions?session_id=eq." .. sessionId,
+                    { timestamp = 0 })
+                warnLog("⚠️ DELETE gagal, ditandai stale")
+            else
+                log("🗑️ Session deleted")
+            end
+        end)
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 9. TRACK EXECUTE (debounced per-place)
+-- ─────────────────────────────────────────────────────────────────────
+local function trackExecute()
+    if not CONFIG.EnableTracking then return end
+
+    local placeKey = tostring(game.PlaceId)
+    local now      = os.time()
+
+    if State.trackCache[placeKey] and
+       (now - State.trackCache[placeKey]) < CONFIG.TrackDebounce then
+        log("⏭️ Skip track (debounce aktif)")
+        return
+    end
+    State.trackCache[placeKey] = now
+
+    task.spawn(function()
+        pcall(function()
+            local gameName = getGameName()
+
+            local ok, err = supabaseReq("POST", "/executes", {
+                user_id     = player.UserId,
+                username    = player.Name,
+                place_id    = tonumber(placeKey),
+                game_name   = gameName,
+                script_name = CONFIG.ScriptName,
+                timestamp   = now,
+            })
+
+            if ok then
+                log("✅ Tracked | Map:", gameName)
+            else
+                State.trackCache[placeKey] = nil   -- rollback
+                warnLog("❌ Track failed:", err)
+            end
+        end)
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 10. PUBLIC API — join / list (opsional)
+-- ─────────────────────────────────────────────────────────────────────
+local function listSessions(limit)
+    limit = limit or 50
+    local cutoff = os.time() - CONFIG.SessionTimeout
+    local path = "/sessions?timestamp=gt." .. cutoff
+              .. "&select=session_id,username,place_id,job_id,game_name,"
+              .. "join_url,timestamp"
+              .. "&order=timestamp.desc&limit=" .. limit
+
+    local ok, body = supabaseReq("GET", path)
+    if not ok then return {} end
+    return safeDecode(body) or {}
+end
+
+local function joinSession(targetSessionId)
+    if tostring(targetSessionId) == sessionId then
+        warnLog("Tidak bisa join session sendiri")
+        return false
+    end
+
+    local ok, body = supabaseReq("GET",
+        "/sessions?session_id=eq." .. tostring(targetSessionId)
+        .. "&select=place_id,job_id,game_name,join_url&limit=1")
+
+    if not ok then
+        warnLog("❌ Fetch session failed")
+        return false
+    end
+
+    local data = safeDecode(body)
+    if not data or not data[1] or not data[1].job_id then
+        warnLog("Session tidak ditemukan / job_id kosong")
+        return false
+    end
+
+    local s = data[1]
+    log("🚀 Joining:", s.game_name, "| job:", s.job_id)
+
+    local success = pcall(function()
+        TeleportService:TeleportToPlaceInstance(
+            tonumber(s.place_id), s.job_id, player
+        )
+    end)
+
+    if not success then
+        local url = s.join_url or ("roblox://placeId=" .. s.place_id
+                     .. "&gameInstanceId=" .. s.job_id)
+        if setclipboard then
+            pcall(setclipboard, url)
+            warnLog("⚠️ Teleport gagal. URL dicopy:", url)
+        end
+    end
+    return success
+end
+
+local function joinUser(userId)
+    return joinSession(tostring(userId))
+end
+
+if CONFIG.EnableJoinAPI then
+    _G.REN = {
+        join = joinUser,
+        joinSession = joinSession,
+        list = listSessions,
+        refresh = doFullPush,
+        config = CONFIG,
+    }
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 11. AUTO-CLEANUP HOOK
+-- ─────────────────────────────────────────────────────────────────────
+task.spawn(function()
+    pcall(function()
+        Players.PlayerRemoving:Connect(function(leaving)
+            if leaving == player then deleteSession() end
+        end)
+    end)
+    pcall(function()
+        game:BindToClose(function()
+            deleteSession()
+            task.wait(1)
+        end)
+    end)
+end)
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 12. START
+-- ─────────────────────────────────────────────────────────────────────
+doFullPush()
+trackExecute()
+
+task.spawn(function()
+    while not State.sessionDeleted do
+        task.wait(CONFIG.HeartbeatInterval)
+        heartbeat()
+    end
+end)
+
+log("✅ Standalone tracker aktif | ScriptName:", CONFIG.ScriptName)
