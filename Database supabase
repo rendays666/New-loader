@@ -1,6 +1,5 @@
 -- ╔══════════════════════════════════════════════════════════════════╗
--- ║  REN DIAGNOSTIC v6.1 — Compact GUI + reliable rendering           ║
--- ║  Auto-hide saat sukses • tetap tampil + copy error saat gagal     ║
+-- ║  REN TRACKER v6.2 — Clean (no GUI, silent init)                   ║
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local CONFIG = {
@@ -16,237 +15,10 @@ local Players      = game:GetService("Players")
 local HttpService  = game:GetService("HttpService")
 local Teleport     = game:GetService("TeleportService")
 local Marketplace  = game:GetService("MarketplaceService")
-local TweenService = game:GetService("TweenService")
-local TextService  = game:GetService("TextService")
 
 local player = Players.LocalPlayer
 if not player then return warn("[REN] No LocalPlayer") end
 local sessionId = tostring(player.UserId)
-
--- ═══════════════════════════════════════════════════════════════════
--- GUI (compact 300x300, anchored center)
--- ═══════════════════════════════════════════════════════════════════
-local gui = Instance.new("ScreenGui")
-gui.Name = "REN_Diag_" .. tostring(os.time())
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 99999
-gui.IgnoreGuiInset = true
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 300, 0, 300)
-frame.AnchorPoint = Vector2.new(0.5, 0.5)
-frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-frame.BackgroundColor3 = Color3.fromRGB(15, 17, 32)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
-
-local stroke = Instance.new("UIStroke", frame)
-stroke.Color = Color3.fromRGB(88, 101, 242)
-stroke.Thickness = 2
-stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
--- Header bar
-local header = Instance.new("Frame", frame)
-header.Size = UDim2.new(1, 0, 0, 36)
-header.BackgroundColor3 = Color3.fromRGB(25, 30, 50)
-header.BorderSizePixel = 0
-Instance.new("UICorner", header).CornerRadius = UDim.new(0, 10)
-
-local title = Instance.new("TextLabel", header)
-title.Size = UDim2.new(1, -50, 1, 0)
-title.Position = UDim2.new(0, 12, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "🔍 REN Tracker - Testing..."
-title.TextColor3 = Color3.fromRGB(138, 180, 255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 13
-title.TextXAlignment = Enum.TextXAlignment.Left
-
-local closeBtn = Instance.new("TextButton", header)
-closeBtn.Size = UDim2.new(0, 28, 0, 28)
-closeBtn.Position = UDim2.new(1, -34, 0, 4)
-closeBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 16
-closeBtn.BorderSizePixel = 0
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-closeBtn.MouseButton1Click:Connect(function()
-    if gui and gui.Parent then gui:Destroy() end
-end)
-
--- Status bar
-local statusBar = Instance.new("TextLabel", frame)
-statusBar.Size = UDim2.new(1, -20, 0, 22)
-statusBar.Position = UDim2.new(0, 10, 0, 42)
-statusBar.BackgroundTransparency = 1
-statusBar.Text = "Menyiapkan..."
-statusBar.TextColor3 = Color3.fromRGB(255, 220, 100)
-statusBar.Font = Enum.Font.GothamBold
-statusBar.TextSize = 12
-statusBar.TextXAlignment = Enum.TextXAlignment.Left
-
--- Log scroll
-local scroll = Instance.new("ScrollingFrame", frame)
-scroll.Size = UDim2.new(1, -20, 1, -130)
-scroll.Position = UDim2.new(0, 10, 0, 68)
-scroll.BackgroundColor3 = Color3.fromRGB(8, 10, 20)
-scroll.BorderSizePixel = 0
-scroll.ScrollBarThickness = 5
-scroll.CanvasSize = UDim2.new(0, 0, 0, 200)
-Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 6)
-
-local logLabel = Instance.new("TextLabel", scroll)
-logLabel.Size = UDim2.new(1, -16, 0, 200)
-logLabel.Position = UDim2.new(0, 8, 0, 8)
-logLabel.BackgroundTransparency = 1
-logLabel.Text = ""
-logLabel.TextXAlignment = Enum.TextXAlignment.Left
-logLabel.TextYAlignment = Enum.TextYAlignment.Top
-logLabel.TextWrapped = true
-logLabel.Font = Enum.Font.Code
-logLabel.TextSize = 11
-logLabel.RichText = true
-logLabel.TextColor3 = Color3.fromRGB(200, 210, 240)
-
--- Copy button
-local copyBtn = Instance.new("TextButton", frame)
-copyBtn.Size = UDim2.new(1, -20, 0, 32)
-copyBtn.Position = UDim2.new(0, 10, 1, -42)
-copyBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-copyBtn.Text = "📋 Copy Error Log"
-copyBtn.TextColor3 = Color3.new(1, 1, 1)
-copyBtn.Font = Enum.Font.GothamBold
-copyBtn.TextSize = 12
-copyBtn.BorderSizePixel = 0
-copyBtn.Visible = false
-Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 6)
-
--- ═══════════════════════════════════════════════════════════════════
--- LOG SYSTEM (single label, RichText, manual height)
--- ═══════════════════════════════════════════════════════════════════
-local rawLogs = {}     -- plain text
-local richLogs = {}    -- with color tags
-
-local COLORS = {
-    info = "#8ab4ff",
-    ok   = "#57f287",
-    err  = "#ff6b6b",
-    warn = "#fee75c",
-    dim  = "#828caa",
-}
-
-local function escapeRich(s)
-    return tostring(s):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-end
-
-local function refreshLog()
-    if not logLabel or not logLabel.Parent then return end
-    logLabel.Text = table.concat(richLogs, "\n")
-
-    task.defer(function()
-        if not scroll or not scroll.Parent then return end
-        local width = math.max(scroll.AbsoluteSize.X - 24, 100)
-        local ok, bounds = pcall(function()
-            return TextService:GetTextSize(
-                logLabel.Text, 11, Enum.Font.Code,
-                Vector2.new(width, math.huge)
-            )
-        end)
-        local h = (ok and bounds and bounds.Y or (#rawLogs * 15)) + 24
-        logLabel.Size = UDim2.new(1, -16, 0, h)
-        scroll.CanvasSize = UDim2.new(0, 0, 0, h + 20)
-        scroll.CanvasPosition = Vector2.new(0, math.max(0, h))
-    end)
-end
-
-local function logLine(text, level)
-    level = level or "info"
-    print("[REN-DIAG]", text)   -- console backup
-    table.insert(rawLogs, text)
-    local c = COLORS[level] or COLORS.info
-    table.insert(richLogs, `<font color="${c}">${escapeRich(text)}</font>`)
-    refreshLog()
-end
-
-local function setStatus(text, level)
-    if not statusBar or not statusBar.Parent then return end
-    statusBar.Text = text
-    statusBar.TextColor3 = (level == "ok" and Color3.fromRGB(87, 242, 135))
-        or (level == "err" and Color3.fromRGB(255, 107, 107))
-        or (level == "warn" and Color3.fromRGB(254, 231, 92))
-        or Color3.fromRGB(138, 180, 255)
-end
-
--- ═══════════════════════════════════════════════════════════════════
--- ERROR / SUCCESS STATE
--- ═══════════════════════════════════════════════════════════════════
-local function showError(errMsg, hint)
-    setStatus("❌ GAGAL", "err")
-    title.Text = "❌ REN Tracker - Gagal"
-    title.TextColor3 = Color3.fromRGB(255, 107, 107)
-    stroke.Color = Color3.fromRGB(220, 60, 60)
-    header.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
-
-    logLine("══════════════════════════════════", "err")
-    logLine(errMsg, "err")
-    if hint then
-        logLine("", "info")
-        logLine("💡 " .. hint, "warn")
-    end
-    logLine("══════════════════════════════════", "err")
-
-    copyBtn.Visible = true
-    copyBtn.MouseButton1Click:Connect(function()
-        local full = table.concat(rawLogs, "\n")
-        local copied, saved = false, false
-        if setclipboard then
-            local ok = pcall(setclipboard, full)
-            if ok then copied = true end
-        end
-        if writefile then
-            local ok = pcall(writefile, "ren_error_log.txt", full)
-            if ok then saved = true end
-        end
-        if copied and saved then copyBtn.Text = "✅ Copied + File Saved"
-        elseif copied then copyBtn.Text = "✅ Copied to Clipboard"
-        elseif saved then copyBtn.Text = "✅ Saved: ren_error_log.txt"
-        else copyBtn.Text = "❌ Copy Failed" end
-        task.delay(3, function()
-            if copyBtn and copyBtn.Parent then
-                copyBtn.Text = "📋 Copy Error Log"
-            end
-        end)
-    end)
-end
-
-local function showSuccess()
-    setStatus("✅ Berhasil — tracker aktif", "ok")
-    title.Text = "✅ REN Tracker - Aktif"
-    title.TextColor3 = Color3.fromRGB(87, 242, 135)
-    stroke.Color = Color3.fromRGB(87, 242, 135)
-    header.BackgroundColor3 = Color3.fromRGB(20, 50, 30)
-
-    task.delay(3, function()
-        if not gui or not gui.Parent then return end
-        local info = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        for _, d in ipairs(frame:GetDescendants()) do
-            if d:IsA("TextLabel") or d:IsA("TextButton") then
-                TweenService:Create(d, info, { TextTransparency = 1, BackgroundTransparency = 1 }):Play()
-            elseif d:IsA("Frame") or d:IsA("ScrollingFrame") then
-                TweenService:Create(d, info, { BackgroundTransparency = 1 }):Play()
-            elseif d:IsA("UIStroke") then
-                TweenService:Create(d, info, { Transparency = 1 }):Play()
-            end
-        end
-        task.wait(1)
-        if gui and gui.Parent then gui:Destroy() end
-    end)
-end
 
 -- ═══════════════════════════════════════════════════════════════════
 -- HTTP DETECTION
@@ -304,206 +76,115 @@ elseif syn and syn.request then
     end, "syn.request()"
 end
 
+if not httpFn then
+    return warn("[REN] No HTTP method available in executor")
+end
+
 local function callRPC(fnName, payload)
     local url = CONFIG.URL .. "/rest/v1/rpc/" .. fnName
     return httpFn(url, HttpService:JSONEncode(payload or {}))
 end
 
 -- ═══════════════════════════════════════════════════════════════════
--- MAIN (pcall wrapped, so failures always surface in GUI)
+-- TRACKER
 -- ═══════════════════════════════════════════════════════════════════
-task.spawn(function()
-    local ok, fatal = pcall(function()
-        logLine("Executor: " .. tostring(identifyexecutor and identifyexecutor() or "?"), "dim")
-        logLine("User: " .. player.Name .. " (" .. player.UserId .. ")", "dim")
-        logLine("Place: " .. game.PlaceId, "dim")
-        logLine("", "info")
+local State = { lastFullPush = 0, deleted = false,
+                hbInFlight = false, hbQueued = false, trackCache = {} }
 
-        -- 1. HTTP
-        setStatus("Cek HTTP method...", "info")
-        if not httpFn then
-            return showError(
-                "Tidak ada HTTP method di executor.\n" ..
-                "Executor: " .. tostring(identifyexecutor and identifyexecutor() or "?"),
-                "Coba Delta / Codex / AWP sebagai executor."
-            )
-        end
-        logLine("✓ HTTP: " .. methodName, "ok")
+local function getGameName()
+    local o, i = pcall(function() return Marketplace:GetProductInfo(game.PlaceId) end)
+    if o and type(i) == "table" and i.Name then return i.Name end
+    return "Unknown Game"
+end
 
-        -- 2. UPSERT
-        setStatus("Test ren_upsert_session...", "info")
-        local testSid = "diag_" .. sessionId
-        local jid = game.JobId ~= "" and game.JobId or "Studio"
-        local pid = tostring(game.PlaceId)
-        local r = callRPC("ren_upsert_session", {
-            p_session_id  = testSid, p_username = player.Name,
-            p_user_id     = player.UserId, p_place_id = tonumber(pid),
-            p_job_id      = jid, p_game_name = "Diag Test",
-            p_join_url    = "https://www.roblox.com/games/start?placeId=" .. pid,
-            p_profile_url = "https://www.roblox.com/users/" .. player.UserId .. "/profile",
-            p_executor    = (identifyexecutor and identifyexecutor()) or "Unknown",
-            p_timestamp   = os.time(),
-        })
-        if not r.success then
-            local hint = "Jalankan SQL migration ren_* di Supabase."
-            if r.code == 401 then hint = "API key salah. Cek Settings → API."
-            elseif r.code == 403 or r.code == 42501 then hint = "Grant/RLS block. Jalankan SQL FIX GRANT."
-            elseif r.code == 404 then hint = "Function tidak ditemukan. Jalankan SQL migration ren_*."
-            elseif r.code == 400 then hint = "Parameter RPC mismatch. Cek definisi function." end
-            return showError(
-                "ren_upsert_session GAGAL\n" ..
-                "Err: " .. tostring(r.err) .. "\n" ..
-                "Body: " .. tostring(r.body or "(kosong)"):sub(1, 300),
-                hint
-            )
-        end
-        logLine("✓ upsert OK (HTTP " .. r.code .. ")", "ok")
+local function doFullPush()
+    local now = os.time()
+    local j = game.JobId ~= "" and game.JobId or "Studio"
+    local p = tostring(game.PlaceId)
+    local rr = callRPC("ren_upsert_session", {
+        p_session_id = sessionId, p_username = player.Name,
+        p_user_id = player.UserId, p_place_id = tonumber(p),
+        p_job_id = j, p_game_name = getGameName(),
+        p_join_url = "https://www.roblox.com/games/start?placeId="..p.."&gameInstanceId="..j,
+        p_profile_url = "https://www.roblox.com/users/"..player.UserId.."/profile",
+        p_executor = (identifyexecutor and identifyexecutor()) or "Unknown",
+        p_timestamp = now,
+    })
+    if rr.success then State.lastFullPush = now end
+end
 
-        -- 3. HEARTBEAT
-        setStatus("Test ren_heartbeat...", "info")
-        local hb = callRPC("ren_heartbeat", { p_session_id = testSid, p_timestamp = os.time() })
-        if hb.success then logLine("✓ heartbeat OK", "ok")
-        else logLine("⚠ heartbeat: " .. tostring(hb.err), "warn") end
-
-        -- 4. TRACK
-        setStatus("Test ren_track_execute...", "info")
-        local tr = callRPC("ren_track_execute", {
-            p_user_id = player.UserId, p_username = player.Name,
-            p_place_id = tonumber(pid), p_game_name = "Diag Test",
-            p_script_name = "REN-DIAG", p_timestamp = os.time(),
-        })
-        if tr.success then logLine("✓ track OK", "ok")
-        else logLine("⚠ track: " .. tostring(tr.err), "warn") end
-
-        -- 5. LIST
-        setStatus("Test ren_list_sessions...", "info")
-        local ls = callRPC("ren_list_sessions", { p_cutoff = os.time() - 300, p_limit = 5 })
-        if ls.success then logLine("✓ list OK", "ok")
-        else logLine("⚠ list: " .. tostring(ls.err), "warn") end
-
-        -- 6. VERIFY
-        setStatus("Verifikasi data di DB...", "info")
-        local v = callRPC("ren_get_session", { p_session_id = testSid })
-        if v.success and v.body and v.body ~= "[]" and v.body ~= "null" then
-            logLine("✓ Data benar-benar masuk tabel sessions!", "ok")
-        else
-            logLine("⚠ Data tidak terbaca dari DB — cek GRANT SELECT", "warn")
-        end
-
-        -- cleanup
-        pcall(function() callRPC("ren_delete_session", { p_session_id = testSid }) end)
-
-        logLine("", "info")
-        logLine("🚀 Semua OK, mulai tracker...", "ok")
-
-        -- ═══════════════════════════════════════════════════════════
-        -- REAL TRACKER
-        -- ═══════════════════════════════════════════════════════════
-        local State = { lastFullPush = 0, deleted = false,
-                        hbInFlight = false, hbQueued = false, trackCache = {} }
-
-        local function getGameName()
-            local o, i = pcall(function() return Marketplace:GetProductInfo(game.PlaceId) end)
-            if o and type(i) == "table" and i.Name then return i.Name end
-            return "Unknown Game"
-        end
-
-        local function doFullPush()
-            local now = os.time()
-            local j = game.JobId ~= "" and game.JobId or "Studio"
-            local p = tostring(game.PlaceId)
-            local rr = callRPC("ren_upsert_session", {
-                p_session_id = sessionId, p_username = player.Name,
-                p_user_id = player.UserId, p_place_id = tonumber(p),
-                p_job_id = j, p_game_name = getGameName(),
-                p_join_url = "https://www.roblox.com/games/start?placeId="..p.."&gameInstanceId="..j,
-                p_profile_url = "https://www.roblox.com/users/"..player.UserId.."/profile",
-                p_executor = (identifyexecutor and identifyexecutor()) or "Unknown",
-                p_timestamp = now,
-            })
-            if rr.success then State.lastFullPush = now end
-        end
-
-        local function heartbeat()
-            if State.hbInFlight then State.hbQueued = true; return end
-            State.hbInFlight = true
-            task.spawn(function()
-                local n = os.time()
-                if n - State.lastFullPush >= CONFIG.FullPushInterval then doFullPush()
-                else callRPC("ren_heartbeat", { p_session_id = sessionId, p_timestamp = n }) end
-                State.hbInFlight = false
-                if State.hbQueued then State.hbQueued = false; heartbeat() end
-            end)
-        end
-
-        local function deleteSession()
-            if State.deleted then return end
-            State.deleted = true
-            task.spawn(function()
-                callRPC("ren_delete_session", { p_session_id = sessionId })
-            end)
-        end
-
-        local function trackExecute()
-            local k = tostring(game.PlaceId)
-            local n = os.time()
-            if State.trackCache[k] and (n - State.trackCache[k]) < CONFIG.TrackDebounce then return end
-            State.trackCache[k] = n
-            task.spawn(function()
-                callRPC("ren_track_execute", {
-                    p_user_id = player.UserId, p_username = player.Name,
-                    p_place_id = tonumber(k), p_game_name = getGameName(),
-                    p_script_name = CONFIG.ScriptName, p_timestamp = n,
-                })
-            end)
-        end
-
-        _G.REN = {
-            join = function(tid)
-                local rr = callRPC("ren_get_session", { p_session_id = tostring(tid) })
-                if not rr.success or not rr.body then return false end
-                local o, d = pcall(function() return HttpService:JSONDecode(rr.body) end)
-                if not o or type(d) ~= "table" or not d[1] or not d[1].job_id then return false end
-                pcall(function()
-                    Teleport:TeleportToPlaceInstance(tonumber(d[1].place_id), d[1].job_id, player)
-                end)
-                return true
-            end,
-            refresh = doFullPush,
-            method = methodName,
-        }
-
-        -- ✅ Push session DULU sebelum hook (hook bisa throw)
-        doFullPush()
-        trackExecute()
-
-        -- ✅ Start heartbeat loop lebih awal
-        task.spawn(function()
-            while not State.deleted do
-                task.wait(CONFIG.HeartbeatInterval)
-                heartbeat()
-            end
-        end)
-
-        -- ✅ Hook cleanup dibungkus pcall (BindToClose = server-only)
-        pcall(function()
-            Players.PlayerRemoving:Connect(function(l)
-                if l == player then deleteSession() end
-            end)
-        end)
-        pcall(function()
-            game:BindToClose(function() deleteSession(); task.wait(1) end)
-        end)
-
-        logLine("", "info")
-        logLine("✅ Tracker aktif — GUI hilang 3 detik lagi", "ok")
-        showSuccess()
+local function heartbeat()
+    if State.hbInFlight then State.hbQueued = true; return end
+    State.hbInFlight = true
+    task.spawn(function()
+        local n = os.time()
+        if n - State.lastFullPush >= CONFIG.FullPushInterval then doFullPush()
+        else callRPC("ren_heartbeat", { p_session_id = sessionId, p_timestamp = n }) end
+        State.hbInFlight = false
+        if State.hbQueued then State.hbQueued = false; heartbeat() end
     end)
+end
 
-    if not ok then
-        showError(
-            "Fatal error saat init:\n" .. tostring(fatal),
-            "Ini bug script — screenshot GUI ini ke ChatGPT."
-        )
+local function deleteSession()
+    if State.deleted then return end
+    State.deleted = true
+    task.spawn(function()
+        callRPC("ren_delete_session", { p_session_id = sessionId })
+    end)
+end
+
+local function trackExecute()
+    local k = tostring(game.PlaceId)
+    local n = os.time()
+    if State.trackCache[k] and (n - State.trackCache[k]) < CONFIG.TrackDebounce then return end
+    State.trackCache[k] = n
+    task.spawn(function()
+        callRPC("ren_track_execute", {
+            p_user_id = player.UserId, p_username = player.Name,
+            p_place_id = tonumber(k), p_game_name = getGameName(),
+            p_script_name = CONFIG.ScriptName, p_timestamp = n,
+        })
+    end)
+end
+
+_G.REN = {
+    join = function(tid)
+        local rr = callRPC("ren_get_session", { p_session_id = tostring(tid) })
+        if not rr.success or not rr.body then return false end
+        local o, d = pcall(function() return HttpService:JSONDecode(rr.body) end)
+        if not o or type(d) ~= "table" or not d[1] or not d[1].job_id then return false end
+        pcall(function()
+            Teleport:TeleportToPlaceInstance(tonumber(d[1].place_id), d[1].job_id, player)
+        end)
+        return true
+    end,
+    refresh = doFullPush,
+    method = methodName,
+}
+
+-- ═══════════════════════════════════════════════════════════════════
+-- START
+-- ═══════════════════════════════════════════════════════════════════
+-- ✅ Push session DULU sebelum hook (hook bisa throw)
+doFullPush()
+trackExecute()
+
+-- ✅ Start heartbeat loop lebih awal
+task.spawn(function()
+    while not State.deleted do
+        task.wait(CONFIG.HeartbeatInterval)
+        heartbeat()
     end
 end)
+
+-- ✅ Hook cleanup dibungkus pcall (BindToClose = server-only)
+pcall(function()
+    Players.PlayerRemoving:Connect(function(l)
+        if l == player then deleteSession() end
+    end)
+end)
+pcall(function()
+    game:BindToClose(function() deleteSession(); task.wait(1) end)
+end)
+
+print("[REN] Tracker aktif via " .. methodName)
