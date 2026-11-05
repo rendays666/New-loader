@@ -1,0 +1,456 @@
+--[[
+  RENRENHUB — SERVER INFO GUI
+  ═══════════════════════════════════════════════════════════════
+  Nampilin: PlaceId, UniverseId, Game name, Creator, Player count,
+            JobId, Region, Player info — dengan tombol Copy.
+  Cocok buat ngisi manifest.json.
+]]
+
+print("[REN] ════════ Server Info START ════════")
+
+-- ╔═══════════════════════════════════════════════════════════════════╗
+-- ║  SERVICES                                                          ║
+-- ╚═══════════════════════════════════════════════════════════════════╝
+local Players            = game:GetService("Players")
+local HttpService        = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local TweenService       = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+if not player then return end
+local pg = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui", 10)
+if not pg then return end
+
+-- ╔═══════════════════════════════════════════════════════════════════╗
+-- ║  HTTP                                                              ║
+-- ╚═══════════════════════════════════════════════════════════════════╝
+local function httpGet(url)
+    local ok, r = pcall(function() return game:HttpGet(url, true) end)
+    if ok and r and r ~= "" then return r end
+    if syn and syn.request then
+        local x = pcall(function() return syn.request({Url=url, Method="GET"}) end)
+        if x and x.Body then return x.Body end
+    end
+    if http_request then
+        local x = pcall(function() return http_request({Url=url, Method="GET"}) end)
+        if x and x.Body then return x.Body end
+    end
+    if request then
+        local x = pcall(function() return request({Url=url, Method="GET"}) end)
+        if x and x.Body then return x.Body end
+    end
+    return nil
+end
+
+-- ╔═══════════════════════════════════════════════════════════════════╗
+-- ║  CLIPBOARD                                                         ║
+-- ╚═══════════════════════════════════════════════════════════════════╝
+local function copyToClipboard(text)
+    local ok = pcall(function() setclipboard(tostring(text)) end)
+    if ok then return true end
+    ok = pcall(function() toclipboard(tostring(text)) end)
+    return ok
+end
+
+-- ╔═══════════════════════════════════════════════════════════════════╗
+-- ║  DATA FETCHERS                                                     ║
+-- ╚═══════════════════════════════════════════════════════════════════╝
+local function getUniverseId(placeId)
+    local body = httpGet("https://apis.roblox.com/universes/v1/places/" .. tostring(placeId) .. "/universe")
+    if not body then return nil end
+    local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+    if ok and data and tonumber(data.universeId) then return tonumber(data.universeId) end
+    return nil
+end
+
+local function getGameInfo(universeId)
+    local body = httpGet("https://games.roblox.com/v1/games?universeIds=" .. tostring(universeId))
+    if not body then return nil end
+    local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+    if ok and data and data.data and data.data[1] then
+        return data.data[1]
+    end
+    return nil
+end
+
+local function getCreatorName(gameInfo)
+    if not gameInfo then return "?" end
+    if gameInfo.creator then
+        local ctype = gameInfo.creator.type or ""
+        local cname = gameInfo.creator.name or "?"
+        if ctype == "User" then return cname .. " (User)"
+        elseif ctype == "Group" then return cname .. " (Group)"
+        else return cname end
+    end
+    return "?"
+end
+
+-- ╔═══════════════════════════════════════════════════════════════════╗
+-- ║  BUILD DATA TABLE                                                  ║
+-- ╚═══════════════════════════════════════════════════════════════════╝
+local function gatherData()
+    local placeId = game.PlaceId
+    local universeId = getUniverseId(placeId) or game.GameId
+    local gameInfo = getGameInfo(universeId)
+
+    local players = #Players:GetPlayers()
+    local maxPlayers = Players.MaxPlayers
+
+    local data = {}
+
+    -- GAME INFO
+    local function add(section, label, value, copyable)
+        table.insert(data, {section = section, label = label, value = tostring(value or "?"), copy = copyable ~= false})
+    end
+
+    add("GAME", "PlaceId", placeId)
+    add("GAME", "UniverseId", universeId)
+    add("GAME", "Game Name", gameInfo and gameInfo.name or "?")
+    add("GAME", "Creator", getCreatorName(gameInfo))
+    add("GAME", "Playing (global)", gameInfo and gameInfo.playing or "?")
+    add("GAME", "Visits", gameInfo and gameInfo.visits or "?")
+    add("GAME", "Created", gameInfo and gameInfo.created or "?")
+    add("GAME", "Updated", gameInfo and gameInfo.updated or "?")
+
+    -- SERVER INFO
+    add("SERVER", "JobId", game.JobId ~= "" and game.JobId or "?")
+    add("SERVER", "Players", players .. " / " .. maxPlayers)
+    add("SERVER", "Place Version", game.PlaceVersion)
+    add("SERVER", "Creator ID", game.CreatorId)
+    add("SERVER", "Creator Type", tostring(game.CreatorType))
+    add("SERVER", "Server Region", "auto-detect")
+
+    -- PLAYER INFO
+    add("PLAYER", "Name", player.Name)
+    add("PLAYER", "Display Name", player.DisplayName)
+    add("PLAYER", "UserId", player.UserId)
+    add("PLAYER", "Account Age", player.AccountAge .. " hari")
+    add("PLAYER", "Membership", tostring(player.MembershipType))
+
+    return data, gameInfo, universeId
+end
+
+-- ╔═══════════════════════════════════════════════════════════════════╗
+-- ║  BUILD GUI                                                         ║
+-- ╚═══════════════════════════════════════════════════════════════════╝
+local function showInfoGUI()
+    local old = pg:FindFirstChild("REN_ServerInfo"); if old then old:Destroy() end
+
+    local data, gameInfo, universeId = gatherData()
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "REN_ServerInfo"
+    gui.ResetOnSpawn = false
+    gui.DisplayOrder = 700
+    gui.Parent = pg
+
+    local panel = Instance.new("Frame", gui)
+    panel.Size = UDim2.new(0, 520, 0, 560)
+    panel.AnchorPoint = Vector2.new(0.5, 0.5)
+    panel.Position = UDim2.new(0.5, 0, 0.5, 0)
+    panel.BackgroundColor3 = Color3.fromRGB(20, 24, 38)
+    panel.BorderSizePixel = 0
+    panel.Active = true
+    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
+    local stroke = Instance.new("UIStroke", panel)
+    stroke.Color = Color3.fromRGB(0, 220, 160); stroke.Thickness = 2
+
+    -- drag
+    local dragging, dragStart, startPos = false, nil, nil
+    panel.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = panel.Position
+        end
+    end)
+    panel.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            panel.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    -- HEADER
+    local header = Instance.new("Frame", panel)
+    header.Size = UDim2.new(1, 0, 0, 60)
+    header.BackgroundColor3 = Color3.fromRGB(28, 32, 48)
+    header.BorderSizePixel = 0
+    Instance.new("UICorner", header).CornerRadius = UDim.new(0, 16)
+
+    local iconBox = Instance.new("ImageLabel", header)
+    iconBox.Size = UDim2.new(0, 44, 0, 44)
+    iconBox.Position = UDim2.new(0, 10, 0, 8)
+    iconBox.BackgroundColor3 = Color3.fromRGB(40, 46, 66)
+    iconBox.BorderSizePixel = 0
+    iconBox.Image = "rbxthumb://type=GameIcon&id=" .. tostring(universeId) .. "&w=150&h=150"
+    Instance.new("UICorner", iconBox).CornerRadius = UDim.new(0, 10)
+
+    local titleLabel = Instance.new("TextLabel", header)
+    titleLabel.Size = UDim2.new(1, -120, 0, 22)
+    titleLabel.Position = UDim2.new(0, 64, 0, 10)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = gameInfo and gameInfo.name or "Server Info"
+    titleLabel.TextColor3 = Color3.fromRGB(0, 220, 160)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextSize = 15
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+    local subtitle = Instance.new("TextLabel", header)
+    subtitle.Size = UDim2.new(1, -120, 0, 16)
+    subtitle.Position = UDim2.new(0, 64, 0, 34)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "Server Information"
+    subtitle.TextColor3 = Color3.fromRGB(140, 150, 170)
+    subtitle.Font = Enum.Font.Gotham
+    subtitle.TextSize = 11
+    subtitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local xBtn = Instance.new("TextButton", header)
+    xBtn.Size = UDim2.new(0, 32, 0, 32)
+    xBtn.Position = UDim2.new(1, -42, 0, 14)
+    xBtn.BackgroundColor3 = Color3.fromRGB(200, 55, 55)
+    xBtn.Text = "×"
+    xBtn.TextColor3 = Color3.new(1, 1, 1)
+    xBtn.Font = Enum.Font.GothamBold
+    xBtn.TextSize = 20
+    xBtn.BorderSizePixel = 0
+    Instance.new("UICorner", xBtn).CornerRadius = UDim.new(0, 8)
+    xBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+    -- SCROLL
+    local scroll = Instance.new("ScrollingFrame", panel)
+    scroll.Size = UDim2.new(1, -24, 1, -140)
+    scroll.Position = UDim2.new(0, 12, 0, 70)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel = 0
+    scroll.ScrollBarThickness = 6
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(0, 220, 160)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+    local listLayout = Instance.new("UIListLayout", scroll)
+    listLayout.Padding = UDim.new(0, 6)
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- SECTION ROWS
+    local currentSection = ""
+    local orderIdx = 0
+    local sectionColors = {
+        GAME   = Color3.fromRGB(0, 220, 160),
+        SERVER = Color3.fromRGB(100, 160, 255),
+        PLAYER = Color3.fromRGB(255, 180, 80),
+    }
+
+    for _, item in ipairs(data) do
+        if item.section ~= currentSection then
+            currentSection = item.section
+            orderIdx = orderIdx + 1
+            local secLabel = Instance.new("TextLabel", scroll)
+            secLabel.Size = UDim2.new(1, -8, 0, 22)
+            secLabel.BackgroundTransparency = 1
+            secLabel.Text = "▸ " .. currentSection
+            secLabel.TextColor3 = sectionColors[currentSection] or Color3.fromRGB(0, 220, 160)
+            secLabel.Font = Enum.Font.GothamBold
+            secLabel.TextSize = 12
+            secLabel.TextXAlignment = Enum.TextXAlignment.Left
+            secLabel.LayoutOrder = orderIdx
+            orderIdx = orderIdx + 1
+        end
+
+        local row = Instance.new("Frame", scroll)
+        row.Size = UDim2.new(1, -8, 0, 38)
+        row.BackgroundColor3 = Color3.fromRGB(28, 33, 50)
+        row.BorderSizePixel = 0
+        row.LayoutOrder = orderIdx
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+        local label = Instance.new("TextLabel", row)
+        label.Size = UDim2.new(0, 150, 1, 0)
+        label.Position = UDim2.new(0, 12, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Text = item.label
+        label.TextColor3 = Color3.fromRGB(150, 160, 180)
+        label.Font = Enum.Font.Gotham
+        label.TextSize = 11
+        label.TextXAlignment = Enum.TextXAlignment.Left
+
+        local value = Instance.new("TextLabel", row)
+        value.Size = UDim2.new(1, -220, 1, 0)
+        value.Position = UDim2.new(0, 162, 0, 0)
+        value.BackgroundTransparency = 1
+        value.Text = item.value
+        value.TextColor3 = Color3.fromRGB(240, 240, 250)
+        value.Font = Enum.Font.GothamBold
+        value.TextSize = 12
+        value.TextXAlignment = Enum.TextXAlignment.Left
+        value.TextTruncate = Enum.TextTruncate.AtEnd
+
+        if item.copy and item.value ~= "?" and item.value ~= "" then
+            local copyBtn = Instance.new("TextButton", row)
+            copyBtn.Size = UDim2.new(0, 52, 0, 24)
+            copyBtn.Position = UDim2.new(1, -60, 0.5, -12)
+            copyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 120)
+            copyBtn.Text = "Copy"
+            copyBtn.TextColor3 = Color3.new(1, 1, 1)
+            copyBtn.Font = Enum.Font.GothamBold
+            copyBtn.TextSize = 10
+            copyBtn.BorderSizePixel = 0
+            Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 6)
+
+            copyBtn.MouseButton1Click:Connect(function()
+                local ok = copyToClipboard(item.value)
+                copyBtn.Text = ok and "✓" or "✗"
+                copyBtn.BackgroundColor3 = ok and Color3.fromRGB(0, 220, 160) or Color3.fromRGB(200, 55, 55)
+                task.delay(1, function()
+                    if copyBtn.Parent then
+                        copyBtn.Text = "Copy"
+                        copyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 120)
+                    end
+                end)
+            end)
+        end
+
+        orderIdx = orderIdx + 1
+    end
+
+    -- BOTTOM BUTTONS
+    local bottomBar = Instance.new("Frame", panel)
+    bottomBar.Size = UDim2.new(1, -24, 0, 50)
+    bottomBar.Position = UDim2.new(0, 12, 1, -60)
+    bottomBar.BackgroundTransparency = 1
+
+    local function makeBtn(text, color, xPos, width, onClick)
+        local btn = Instance.new("TextButton", bottomBar)
+        btn.Size = UDim2.new(0, width, 1, 0)
+        btn.Position = UDim2.new(0, xPos, 0, 0)
+        btn.BackgroundColor3 = color
+        btn.Text = text
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 12
+        btn.BorderSizePixel = 0
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+        btn.MouseButton1Click:Connect(onClick)
+        return btn
+    end
+
+    -- Copy PlaceId
+    makeBtn("📋 Copy PlaceId", Color3.fromRGB(0, 170, 120), 0, 110, function()
+        copyToClipboard(game.PlaceId)
+    end)
+
+    -- Copy Manifest Entry (siap paste)
+    makeBtn("📄 Copy Manifest", Color3.fromRGB(100, 130, 220), 116, 130, function()
+        local entry = string.format([[
+    {
+      "id": "%s",
+      "name": "%s",
+      "scriptUrl": "URL_SCRIPT_DI_SINI",
+      "description": "auto win %s",
+      "imageUrl": "",
+      "placeIds": [%d]
+    }]],
+            (gameInfo and gameInfo.name or "script"):lower():gsub("%s+", "-"):gsub("[^%w%-]", ""),
+            gameInfo and gameInfo.name or "Script",
+            gameInfo and gameInfo.name or "script",
+            game.PlaceId
+        )
+        copyToClipboard(entry)
+        local btn = bottomBar:GetChildren()[2]
+    end)
+
+    -- Copy JobId
+    makeBtn("🔗 Copy JobId", Color3.fromRGB(80, 160, 220), 252, 110, function()
+        copyToClipboard(game.JobId)
+    end)
+
+    -- Copy All
+    makeBtn("📦 Copy All", Color3.fromRGB(180, 100, 200), 368, 110, function()
+        local lines = {}
+        for _, item in ipairs(data) do
+            table.insert(lines, item.label .. ": " .. item.value)
+        end
+        copyToClipboard(table.concat(lines, "\n"))
+    end)
+end
+
+-- ╔═══════════════════════════════════════════════════════════════════╗
+-- ║  TOGGLE BUTTON (floating, biar bisa buka-tutup)                    ║
+-- ╚═══════════════════════════════════════════════════════════════════╝
+local toggleGui = pg:FindFirstChild("REN_InfoToggle")
+if toggleGui then toggleGui:Destroy() end
+toggleGui = Instance.new("ScreenGui")
+toggleGui.Name = "REN_InfoToggle"
+toggleGui.ResetOnSpawn = false
+toggleGui.DisplayOrder = 800
+toggleGui.Parent = pg
+
+local floatBtn = Instance.new("TextButton", toggleGui)
+floatBtn.Size = UDim2.new(0, 44, 0, 44)
+floatBtn.Position = UDim2.new(0, 20, 0.5, -22)
+floatBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 140)
+floatBtn.Text = "ℹ"
+floatBtn.TextColor3 = Color3.new(1, 1, 1)
+floatBtn.Font = Enum.Font.GothamBold
+floatBtn.TextSize = 22
+floatBtn.BorderSizePixel = 0
+Instance.new("UICorner", floatBtn).CornerRadius = UDim.new(1, 0)
+local fStroke = Instance.new("UIStroke", floatBtn)
+fStroke.Color = Color3.fromRGB(0, 220, 160); fStroke.Thickness = 2
+
+-- drag float button
+local fDragging, fDragStart, fStartPos = false, nil, nil
+floatBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        fDragging = true
+        fDragStart = input.Position
+        fStartPos = floatBtn.Position
+    end
+end)
+floatBtn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        fDragging = false
+    end
+end)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if fDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - fDragStart
+        floatBtn.Position = UDim2.new(
+            fStartPos.X.Scale, fStartPos.X.Offset + delta.X,
+            fStartPos.Y.Scale, fStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+local lastClick = 0
+floatBtn.MouseButton1Click:Connect(function()
+    local now = tick()
+    if now - lastClick < 0.3 then return end
+    lastClick = now
+    local existing = pg:FindFirstChild("REN_ServerInfo")
+    if existing then
+        existing:Destroy()
+    else
+        showInfoGUI()
+    end
+end)
+
+-- Auto-show sekali di awal
+task.spawn(function()
+    task.wait(0.3)
+    showInfoGUI()
+end)
+
+print("[REN] ════════ READY ════════")
+print("[REN] PlaceId:", game.PlaceId)
+print("[REN] JobId:", game.JobId)
