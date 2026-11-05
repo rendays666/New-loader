@@ -1,62 +1,75 @@
 --[[
   ╔══════════════════════════════════════════════════════════════════╗
-  ║  REN HUB — MASTER LOADER v1.0                                    ║
-  ║  • GUI Loading Log otomatis close                                ║
-  ║  • Auto-load Database + Tracker + Browser + Music                ║
-  ║  • Error reporting ke Discord webhook                            ║
-  ║  • Auto re-execute saat ganti server                             ║
+  ║  REN HUB — MASTER LOADER v1.1                                    ║
+  ║  • Guard anti-eksekusi ganda                                     ║
+  ║  • Tiap script jalan di thread sendiri (loader tidak ketahan)    ║
+  ║  • Auto re-execute saat ganti server (queue_on_teleport)         ║
+  ║  • Error reporting ke Discord webhook (opsional)                 ║
   ╚══════════════════════════════════════════════════════════════════╝
 ]]
+
+local genv = (getgenv and getgenv()) or _G
+-- Mau paksa load ulang? Jalankan dulu: getgenv().REN_LOADED = nil
+if genv.REN_LOADED then return end
+genv.REN_LOADED = true
+
+if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- ============================================================
 -- ⚙️ CONFIG
 -- ============================================================
 local CFG = {
-    Webhook = "https://discord.com/api/webhooks/1564257126648512593/e3Xn_y8jduyENW6Vti7CBdinnqk8CTXixSliasOs3c8-OEqc45VKoGeIvIQ1-kGVliiH",
-    URLs = {
-        tracker = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/Database%20supabase",
-        browser = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/Scriptbrowser-loader",
-        music   = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/music.lua",
+    -- Webhook lama sudah bocor (repo GitHub publik). Hapus di Discord, buat baru, isi di sini.
+    -- Kosong = error report ke Discord dimatikan.
+    Webhook   = "https://discord.com/api/webhooks/1564257126648512593/e3Xn_y8jduyENW6Vti7CBdinnqk8CTXixSliasOs3c8-OEqc45VKoGeIvIQ1-kGVliiH",
+    -- Nama file ini di GitHub kamu (harus sama persis dengan yang di-upload)
+    LoaderURL = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/ren_loader.lua",
+    Steps = {
+        { name = "Tracker", url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/Database%20supabase" },
+        { name = "Music",   url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/music.lua" },
+        { name = "Browser", url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/Scriptbrowser-loader" },
     },
-    AutoReexecFile = "REN_autoreexec.json",
 }
 
 -- ============================================================
 -- SERVICES
 -- ============================================================
-local Players   = game:GetService("Players")
-local HttpSvc   = game:GetService("HttpService")
-local TweenSvc  = game:GetService("TweenService")
-local player    = Players.LocalPlayer
-local pg        = player and (player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui", 10))
-if not pg then return end
+local Players  = game:GetService("Players")
+local HttpSvc  = game:GetService("HttpService")
+local TweenSvc = game:GetService("TweenService")
+local player   = Players.LocalPlayer
+local pg       = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui", 10)
+if not pg then genv.REN_LOADED = nil; return end
 
 -- ============================================================
--- HTTP HELPER (multi-method fallback)
+-- HTTP HELPER
 -- ============================================================
-local function httpPost(url, body, isJSON)
-    local headers = {}
-    if isJSON then headers["Content-Type"] = "application/json" end
-    local p = {Url=url, Method="POST", Headers=headers, Body=body}
-    local ok, r = pcall(function() return syn and syn.request(p) end)
-    if ok and r and r.StatusCode then return r end
-    ok, r = pcall(function() return http_request(p) end)
-    if ok and r and r.StatusCode then return r end
-    ok, r = pcall(function() return request(p) end)
-    if ok and r and r.StatusCode then return r end
+local rawRequest = request or http_request or (syn and syn.request) or (fluxus and fluxus.request)
+
+local function httpPost(url, body)
+    if not rawRequest then return nil end
+    local ok, r = pcall(rawRequest, {
+        Url = url, Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = body,
+    })
+    if ok then return r end
     return nil
 end
 
 local function httpGet(url)
-    local ok, r = pcall(function() return game:HttpGet(url, true) end)
-    if ok and r and r ~= "" then return r end
-    local p = {Url=url, Method="GET"}
-    ok, r = pcall(function() return syn and syn.request(p) end)
-    if ok and r and r.Body then return r.Body end
-    ok, r = pcall(function() return http_request(p) end)
-    if ok and r and r.Body then return r.Body end
-    ok, r = pcall(function() return request(p) end)
-    if ok and r and r.Body then return r.Body end
+    for _ = 1, 3 do
+        local ok, r = pcall(function() return game:HttpGet(url, true) end)
+        if ok and type(r) == "string" and r ~= "" then return r end
+        if rawRequest then
+            local ok2, res = pcall(rawRequest, { Url = url, Method = "GET" })
+            if ok2 and type(res) == "table" and type(res.Body) == "string" and res.Body ~= ""
+               and (res.StatusCode or 200) == 200 then
+                return res.Body
+            end
+        end
+        task.wait(1)
+    end
     return nil
 end
 
@@ -73,19 +86,18 @@ local function reportError(step, reason)
             title = "❌ Loader Error",
             color = 15158332,
             fields = {
-                { name = "Step",       value = "`"..tostring(step).."`", inline = true },
-                { name = "Executor",   value = "`"..tostring(executor).."`", inline = true },
-                { name = "Reason",     value = "```"..tostring(reason):sub(1, 900).."```", inline = false },
-                { name = "Player",     value = player.Name.." (`"..player.UserId.."`)", inline = true },
-                { name = "Place ID",   value = tostring(game.PlaceId), inline = true },
-                { name = "Job ID",     value = "`"..tostring(game.JobId).."`", inline = false },
-                { name = "Time",       value = os.date("!%Y-%m-%dT%H:%M:%SZ"), inline = false },
+                { name = "Step",     value = "`" .. tostring(step) .. "`", inline = true },
+                { name = "Executor", value = "`" .. tostring(executor) .. "`", inline = true },
+                { name = "Reason",   value = "```" .. tostring(reason):sub(1, 900) .. "```", inline = false },
+                { name = "Player",   value = player.Name .. " (`" .. player.UserId .. "`)", inline = true },
+                { name = "Place ID", value = tostring(game.PlaceId), inline = true },
+                { name = "Job ID",   value = "`" .. tostring(game.JobId) .. "`", inline = false },
             },
             timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
         }},
     }
     task.spawn(function()
-        pcall(function() httpPost(CFG.Webhook, HttpSvc:JSONEncode(payload), true) end)
+        pcall(function() httpPost(CFG.Webhook, HttpSvc:JSONEncode(payload)) end)
     end)
 end
 
@@ -169,186 +181,167 @@ logPad.PaddingRight = UDim.new(0, 6)
 logPad.PaddingBottom = UDim.new(0, 4)
 Instance.new("UIListLayout", logFrame).Padding = UDim.new(0, 2)
 
+local GREEN  = Color3.fromRGB(0, 220, 160)
+local RED    = Color3.fromRGB(255, 100, 100)
+local ORANGE = Color3.fromRGB(255, 180, 100)
+
+-- Dibungkus pcall: aman dipanggil walau GUI sudah di-destroy
 local function addLog(text, color)
-    local l = Instance.new("TextLabel", logFrame)
-    l.Size = UDim2.new(1, 0, 0, 14)
-    l.BackgroundTransparency = 1
-    l.Text = "• "..tostring(text)
-    l.TextColor3 = color or Color3.fromRGB(200, 210, 230)
-    l.Font = Enum.Font.Code
-    l.TextSize = 10
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.TextTruncate = Enum.TextTruncate.AtEnd
-    task.wait(0.05)
-    logFrame.CanvasPosition = Vector2.new(0, logFrame.AbsoluteCanvasSize.Y)
+    pcall(function()
+        local l = Instance.new("TextLabel", logFrame)
+        l.Size = UDim2.new(1, 0, 0, 14)
+        l.BackgroundTransparency = 1
+        l.Text = "• " .. tostring(text)
+        l.TextColor3 = color or Color3.fromRGB(200, 210, 230)
+        l.Font = Enum.Font.Code
+        l.TextSize = 10
+        l.TextXAlignment = Enum.TextXAlignment.Left
+        l.TextTruncate = Enum.TextTruncate.AtEnd
+        task.wait()
+        logFrame.CanvasPosition = Vector2.new(0, logFrame.AbsoluteCanvasSize.Y)
+    end)
 end
 
-local totalSteps = 5
-local doneSteps = 0
+local totalSteps = #CFG.Steps + 1
 local function setProgress(step, label)
-    doneSteps = step
-    TweenSvc:Create(bar, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-        Size = UDim2.new(math.clamp(step/totalSteps, 0, 1), 0, 1, 0)
-    }):Play()
-    if label then statusLbl.Text = label end
+    pcall(function()
+        TweenSvc:Create(bar, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(math.clamp(step / totalSteps, 0, 1), 0, 1, 0)
+        }):Play()
+        if label then statusLbl.Text = label end
+    end)
 end
 
 local function closeGUI()
     pcall(function()
-        TweenSvc:Create(panel, TweenInfo.new(0.25), {
-            Size = UDim2.new(0, 0, 0, 0),
-        }):Play()
-        TweenSvc:Create(bd, TweenInfo.new(0.25), {
-            BackgroundTransparency = 1,
-        }):Play()
+        TweenSvc:Create(panel, TweenInfo.new(0.25), { Size = UDim2.new(0, 0, 0, 0) }):Play()
+        TweenSvc:Create(bd, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
     end)
     task.wait(0.3)
     pcall(function() gui:Destroy() end)
 end
 
 -- ============================================================
--- EXECUTE HELPER (isolated — biar `return` di script ga bunuh loader)
+-- EXECUTE HELPER
+-- Script dijalankan di thread sendiri: loop/yield di dalam tracker, music,
+-- atau browser tidak akan menahan loader (dan tidak menahan script lain).
 -- ============================================================
 local function runScript(codeStr, name)
     local fn = loadstring or load
     if not fn then error("loadstring tidak tersedia di executor ini", 0) end
-    local compiled, err = fn(codeStr, "="..name)
-    if not compiled then error("Compile error: "..tostring(err), 0) end
-    local ok, runErr = pcall(compiled)
-    if not ok then error("Runtime: "..tostring(runErr), 0) end
+    local compiled, err = fn(codeStr, "=" .. name)
+    if not compiled then error("Compile error: " .. tostring(err), 0) end
+    task.spawn(function()
+        local ok, runErr = pcall(compiled)
+        if not ok then
+            warn("[REN] " .. name .. " runtime error: " .. tostring(runErr))
+            reportError(name .. " (runtime)", runErr)
+        end
+    end)
 end
 
 local function fetchScript(url, name)
-    addLog("Fetching "..name.."...", Color3.fromRGB(180, 200, 220))
+    addLog("Fetching " .. name .. "...", Color3.fromRGB(180, 200, 220))
     local body = httpGet(url)
-    if not body or body == "" then
-        error("Gagal download "..name.." (URL: "..url..")", 0)
+    if not body then
+        error("Gagal download " .. name .. " (3x percobaan)", 0)
     end
-    addLog("✅ "..name.." downloaded ("..#body.." bytes)", Color3.fromRGB(0, 220, 160))
+    -- GitHub raw balas teks "404: Not Found" (bukan error HTTP) kalau nama file/branch salah
+    if body:sub(1, 4) == "404:" then
+        error(name .. ": URL 404, cek nama file / branch di GitHub", 0)
+    end
+    addLog("✅ " .. name .. " downloaded (" .. #body .. " bytes)", GREEN)
     return body
 end
 
 -- ============================================================
--- AUTO RE-EXECUTE GUARD
+-- AUTO RE-EXECUTE (ganti server / server hop)
+-- queue_on_teleport menyimpan kode yang otomatis jalan di server berikutnya.
+-- Kalau executor kamu tidak punya fungsi ini, taruh loader di folder autoexec.
 -- ============================================================
-local function saveReexecFlag()
-    if not writefile then return end
-    pcall(function()
-        writefile(CFG.AutoReexecFile, HttpSvc:JSONEncode({
-            placeId = game.PlaceId,
-            jobId   = game.JobId,
-            ts      = os.time(),
-            scriptUrl = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/ren_loader.lua",
-        }))
-    end)
+local function queueReexec()
+    if genv.REN_QUEUED then return true end
+    local q = queue_on_teleport
+        or (syn and syn.queue_on_teleport)
+        or (fluxus and fluxus.queue_on_teleport)
+    if not q then
+        addLog("⚠️ executor tidak punya queue_on_teleport", ORANGE)
+        return false
+    end
+    local src = ([[
+        if not game:IsLoaded() then game.Loaded:Wait() end
+        task.wait(1)
+        loadstring(game:HttpGet("%s", true))()
+    ]]):format(CFG.LoaderURL)
+    local ok = pcall(q, src)
+    if ok then genv.REN_QUEUED = true end
+    return ok
 end
 
-local function clearReexecFlag()
-    if not delfile then return end
-    pcall(function() delfile(CFG.AutoReexecFile) end)
-end
-
--- Teleport hook: begitu player pindah server, simpan flag agar auto-load next join
+-- Teleport gagal → antrean mungkin sudah terpakai/terhapus, antrekan lagi
 pcall(function()
     game:GetService("TeleportService").TeleportInitFailed:Connect(function()
-        -- biarkan saja, kalau gagal teleport script tetap hidup
+        genv.REN_QUEUED = nil
+        queueReexec()
     end)
 end)
 
 -- ============================================================
 -- MAIN LOADER FLOW
 -- ============================================================
-local loadError = nil
-
 task.spawn(function()
     task.wait(0.3)
     setProgress(0, "Starting...")
-    addLog("🚀 REN Hub Loader v1.0", Color3.fromRGB(0, 220, 160))
-    addLog("Place: "..tostring(game.PlaceId).." | Job: "..tostring(game.JobId))
+    addLog("🚀 REN Hub Loader v1.1", GREEN)
+    addLog("Place: " .. tostring(game.PlaceId))
 
-    -- ── STEP 1: Database / Tracker ──
-    setProgress(1, "Loading Tracker...")
-    local ok1, err1 = pcall(function()
-        local code = fetchScript(CFG.URLs.tracker, "Tracker")
-        runScript(code, "ren_tracker")
-        addLog("✅ Tracker aktif", Color3.fromRGB(0, 220, 160))
-    end)
-    if not ok1 then
-        loadError = {step = "Tracker", reason = tostring(err1)}
-        addLog("❌ Tracker: "..tostring(err1), Color3.fromRGB(255, 100, 100))
-    end
-    task.wait(0.2)
+    local errors = {}
 
-    -- ── STEP 2: Music ──
-    setProgress(2, "Loading Music...")
-    local ok2, err2 = pcall(function()
-        local code = fetchScript(CFG.URLs.music, "Music")
-        runScript(code, "ren_music")
-        addLog("✅ Music loaded", Color3.fromRGB(0, 220, 160))
-    end)
-    if not ok2 and not loadError then
-        loadError = {step = "Music", reason = tostring(err2)}
-        addLog("❌ Music: "..tostring(err2), Color3.fromRGB(255, 100, 100))
-    end
-    task.wait(0.2)
-
-    -- ── STEP 3: Browser / Loader ──
-    setProgress(3, "Loading Browser...")
-    local ok3, err3 = pcall(function()
-        local code = fetchScript(CFG.URLs.browser, "Browser")
-        runScript(code, "ren_browser")
-        addLog("✅ Browser loaded", Color3.fromRGB(0, 220, 160))
-    end)
-    if not ok3 and not loadError then
-        loadError = {step = "Browser", reason = tostring(err3)}
-        addLog("❌ Browser: "..tostring(err3), Color3.fromRGB(255, 100, 100))
+    for i, step in ipairs(CFG.Steps) do
+        setProgress(i - 1, "Loading " .. step.name .. "...")
+        local ok, err = pcall(function()
+            local code = fetchScript(step.url, step.name)
+            runScript(code, "ren_" .. step.name:lower())
+            addLog("✅ " .. step.name .. " aktif", GREEN)
+        end)
+        if not ok then
+            errors[#errors + 1] = { step = step.name, reason = tostring(err) }
+            addLog("❌ " .. step.name .. ": " .. tostring(err), RED)
+        end
+        task.wait(0.1)
     end
 
-    -- ── STEP 4: Finalize ──
-    setProgress(4, "Finalizing...")
+    setProgress(#CFG.Steps, "Finalizing...")
+    local queued = queueReexec()
+    addLog(queued and "🔄 Auto re-execute siap" or "⚠️ Auto re-execute tidak aktif", queued and GREEN or ORANGE)
     task.wait(0.3)
 
-    if loadError then
-        setProgress(5, "❌ Gagal: "..loadError.step)
-        addLog("⚠️ Mengirim error ke Discord...", Color3.fromRGB(255, 180, 100))
-        reportError(loadError.step, loadError.reason)
-        titleLbl.Text = "❌ Loader Gagal"
-        titleLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
-        stroke.Color = Color3.fromRGB(255, 100, 100)
+    if #errors > 0 then
+        local names, reasons = {}, {}
+        for _, e in ipairs(errors) do
+            names[#names + 1] = e.step
+            reasons[#reasons + 1] = e.step .. ": " .. e.reason
+        end
+        setProgress(totalSteps, "❌ Gagal: " .. table.concat(names, ", "))
+        addLog("⚠️ Mengirim error ke Discord...", ORANGE)
+        reportError(table.concat(names, ", "), table.concat(reasons, "\n"))
+        pcall(function()
+            titleLbl.Text = "❌ Loader Gagal"
+            titleLbl.TextColor3 = RED
+            stroke.Color = RED
+        end)
+        genv.REN_LOADED = nil -- biar bisa dicoba lagi tanpa reset manual
         task.wait(2.5)
         closeGUI()
-        warn("[REN] Loader gagal di step: "..loadError.step)
+        warn("[REN] Loader gagal di step: " .. table.concat(names, ", "))
         return
     end
 
-    -- Sukses total
-    setProgress(5, "✅ Selesai!")
-    addLog("🎉 Semua komponen aktif!", Color3.fromRGB(0, 220, 160))
-    titleLbl.Text = "✅ REN Hub Ready"
-    saveReexecFlag()
+    setProgress(totalSteps, "✅ Selesai!")
+    addLog("🎉 Semua komponen aktif!", GREEN)
+    pcall(function() titleLbl.Text = "✅ REN Hub Ready" end)
     task.wait(1)
     closeGUI()
 end)
 
--- ============================================================
--- AUTO RE-EXECUTE CHECK (saat script jalan lagi setelah pindah server)
--- ============================================================
-task.spawn(function()
-    task.wait(2)
-    if not readfile or not isfile then return end
-    if not isfile(CFG.AutoReexecFile) then return end
-    local ok, data = pcall(readfile, CFG.AutoReexecFile)
-    if not ok or not data then return end
-    local ok2, dec = pcall(function() return HttpSvc:JSONDecode(data) end)
-    if not ok2 or type(dec) ~= "table" then return end
-
-    if dec.placeId == game.PlaceId and dec.jobId ~= game.JobId then
-        -- Server berbeda, tapi script ini sudah jalan → tandai sukses, clear flag
-        addLog("🔄 Terdeteksi pindah server → auto-loaded", Color3.fromRGB(0, 220, 160))
-        clearReexecFlag()
-    elseif dec.placeId ~= game.PlaceId then
-        clearReexecFlag()
-    end
-end)
-
-print("[REN] Master Loader started.")
+print("[REN] Master Loader v1.1 started.")
