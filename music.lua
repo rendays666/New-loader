@@ -1,9 +1,8 @@
 --[[
-  RENRENHUB — MUSIC STANDALONE v3.3
-  - FIX: list lagu sekarang langsung muncul saat execute
-  - Tombol zoom dihapus -> resize dengan drag pojok kanan bawah (◢)
-  - GUI lebih kecil & ringkas (default 210x280)
-  - Satu handler drag/resize untuk semua (lebih efisien), loop 1 detik dihapus
+  RENRENHUB — MUSIC STANDALONE v3.5
+  - Like = Favorite
+  - Score sorting: likes*10 - dislikes*5 (descending)
+  - PlaceModeConfig: 8735521924 = music only
 ]]
 
 local HttpService     = game:GetService("HttpService")
@@ -18,15 +17,24 @@ local CONFIG = {
     FirebaseURL     = "https://music-ad0eb-default-rtdb.asia-southeast1.firebasedatabase.app",
     DiscordWebhook  = "https://discord.com/api/webhooks/1564257126648512593/e3Xn_y8jduyENW6Vti7CBdinnqk8CTXixSliasOs3c8-OEqc45VKoGeIvIQ1-kGVliiH",
     MusicVolume     = 0.5,
-    StartState      = 1,
     DefaultIconPos  = UDim2.new(0, 12, 0.5, -20),
     DefaultPanelPos = UDim2.new(0, 60, 0.5, -140),
     DefaultSize     = Vector2.new(210, 280),
     MinPanelSize    = Vector2.new(180, 230),
     MaxPanelSize    = Vector2.new(450, 650),
-    FavFile         = "REN_MusicFavs.json",
     LoadTimeout     = 4,
     MaxFails        = 5,
+
+    -- Sound mode: 1 = music only, 2 = music + game sound, 3 = game sound only
+    DefaultMode = 2,
+    PlaceModeConfig = {
+        [8735521924] = 1,   -- music only
+        -- [PlaceId] = Mode
+    },
+
+    -- Score weighting for sorting
+    LikeWeight    = 10,
+    DislikeWeight = 5,  -- negative impact per dislike
 }
 
 local FALLBACK_PLAYLIST = {
@@ -52,9 +60,9 @@ local function fetchFB(path)
     if ok then return data end
     return nil
 end
-local function postFB(path, data) return httpReq(CONFIG.FirebaseURL .. path, "POST", HttpService:JSONEncode(data)) end
-local function putFB(path, v)     return httpReq(CONFIG.FirebaseURL .. path, "PUT", HttpService:JSONEncode(v)) end
-local function deleteFB(path)     return httpReq(CONFIG.FirebaseURL .. path, "DELETE", nil) end
+local function postFB(path, data)   return httpReq(CONFIG.FirebaseURL .. path, "POST", HttpService:JSONEncode(data)) end
+local function putFB(path, v)       return httpReq(CONFIG.FirebaseURL .. path, "PUT", HttpService:JSONEncode(v)) end
+local function removeFB(path)       return httpReq(CONFIG.FirebaseURL .. path, "PUT", "null") end
 
 local function fetchURL(url)
     local ok, r = pcall(function() return game:HttpGet(url, true) end)
@@ -78,7 +86,22 @@ local function shuffleList(list)
     end
 end
 
--- Smart ID parser: angka, //angka, rbxassetid://, link Roblox, ?id=
+-- Score = likes*LikeWeight - dislikes*DislikeWeight
+local function entryScore(e)
+    return countKeys(e.likes) * CONFIG.LikeWeight - countKeys(e.dislikes) * CONFIG.DislikeWeight
+end
+
+local function sortByScore(list)
+    table.sort(list, function(a, b)
+        local sa, sb = entryScore(a), entryScore(b)
+        if sa ~= sb then return sa > sb end
+        -- Tie-break: lebih banyak likes dulu, lalu nama
+        local la, lb = countKeys(a.likes), countKeys(b.likes)
+        if la ~= lb then return la > lb end
+        return a.name < b.name
+    end)
+end
+
 local function parseAssetId(input)
     if type(input) ~= "string" then return nil end
     input = input:match("^%s*(.-)%s*$")
@@ -98,32 +121,6 @@ local function parseAssetId(input)
     end
     if #longest >= 6 then return "rbxassetid://" .. longest end
     return nil
-end
-
--- ═══ FAVS ════════════════════════════════════════════════════════════
-local function loadFavs()
-    if writefile and readfile and isfile then
-        if isfile(CONFIG.FavFile) then
-            local ok, data = pcall(readfile, CONFIG.FavFile)
-            if ok and data and data ~= "" then
-                local ok2, dec = pcall(function() return HttpService:JSONDecode(data) end)
-                if ok2 and type(dec) == "table" then return dec end
-            end
-        end
-        return {}
-    end
-    local env = (getgenv and getgenv()) or _G
-    return env.REN_MusicFavs or {}
-end
-
-local function saveFavs(favs)
-    if writefile then
-        local ok, enc = pcall(function() return HttpService:JSONEncode(favs) end)
-        if ok then pcall(writefile, CONFIG.FavFile, enc) end
-        return
-    end
-    local env = (getgenv and getgenv()) or _G
-    env.REN_MusicFavs = favs
 end
 
 -- ═══ PLAYLIST ════════════════════════════════════════════════════════
@@ -178,11 +175,7 @@ local function buildPlaylist()
         e.dislikes = (r and r.dislikes) or {}
     end
 
-    table.sort(base, function(a, b)
-        local la, lb = countKeys(a.likes), countKeys(b.likes)
-        if la ~= lb then return la > lb end
-        return a.name < b.name
-    end)
+    sortByScore(base)
     return base
 end
 
@@ -194,7 +187,6 @@ local pg = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui"
 if not pg then return end
 
 local myUserId = tostring(player.UserId)
-local favorites = loadFavs()
 local preloadCache = {}
 
 -- dedup cache
@@ -210,8 +202,15 @@ local function isDuplicate(assetId)
 end
 for _, e in ipairs(Playlist) do registerId(e.id) end
 
+-- ═══ SOUND MODE RESOLVER ═════════════════════════════════════════════
+local function resolveInitialMode()
+    local m = CONFIG.PlaceModeConfig[game.PlaceId]
+    if type(m) == "number" and m >= 1 and m <= 3 then return m end
+    return CONFIG.DefaultMode
+end
+
 -- ═══ STATE ═══════════════════════════════════════════════════════════
-local musicSound, musicState = nil, CONFIG.StartState
+local musicSound, musicState = nil, resolveInitialMode()
 local currentIndex, musicVolume, musicPaused = 1, CONFIG.MusicVolume, false
 local savedVols, mutedState = {}, { value = true }
 local refreshUI, appendRowToUI
@@ -232,7 +231,7 @@ if pg:FindFirstChild("REN_MusicUI") then pg.REN_MusicUI:Destroy() end
 -- ═══ AUDIO VALIDATION ════════════════════════════════════════════════
 local function validateAudio(assetId)
     if type(assetId) ~= "string" or not assetId:match("^rbxassetid://%d+$") then
-        return false, "Format internal invalid"
+        return false, "Invalid internal format"
     end
     local sound = Instance.new("Sound")
     sound.SoundId = assetId; sound.Volume = 0.01
@@ -240,7 +239,7 @@ local function validateAudio(assetId)
     local ok = pcall(function() ContentProvider:PreloadAsync({sound}) end)
     if not ok or not sound.IsLoaded or sound.TimeLength <= 0 then
         sound:Destroy()
-        return false, "Audio tidak bisa dimuat (private/region-locked/salah ID)"
+        return false, "Audio cannot be loaded (private/region-locked/wrong ID)"
     end
     local maxLoud = 0
     for _, pos in ipairs({0, sound.TimeLength * 0.3, sound.TimeLength * 0.6}) do
@@ -253,7 +252,7 @@ local function validateAudio(assetId)
         pcall(function() sound:Stop() end)
     end
     sound:Destroy()
-    if maxLoud < 3 then return false, "Audio tidak ada suara (silent)" end
+    if maxLoud < 3 then return false, "Audio is silent" end
     return true, math.floor(maxLoud)
 end
 
@@ -280,7 +279,7 @@ local function notifyDiscord(entry, loudness)
 end
 
 local function sendReport(entry, reason)
-    if not CONFIG.DiscordWebhook or CONFIG.DiscordWebhook == "" then return false, "Webhook belum diset" end
+    if not CONFIG.DiscordWebhook or CONFIG.DiscordWebhook == "" then return false, "Webhook not set" end
     local payload = {
         username = "REN Music Reports",
         embeds = {{
@@ -297,21 +296,21 @@ local function sendReport(entry, reason)
     }
     local r = httpReq(CONFIG.DiscordWebhook, "POST", HttpService:JSONEncode(payload))
     if r then return true end
-    return false, "Gagal kirim report"
+    return false, "Failed to send report"
 end
 
 -- ═══ SUBMIT ══════════════════════════════════════════════════════════
 local function submitSong(rawName, rawId, statusCb)
     local name = tostring(rawName or ""):gsub("%c", ""):match("^%s*(.-)%s*$")
-    if #name < 1 or #name > 80 then return nil, "Nama harus 1-80 karakter" end
+    if #name < 1 or #name > 80 then return nil, "Name must be 1-80 characters" end
 
     statusCb("🔍 Parsing ID...")
     local assetId = parseAssetId(rawId)
     if not assetId then
-        return nil, "ID tidak valid. Contoh: 123456789, //123456789, rbxassetid://123, link Roblox"
+        return nil, "Invalid ID. Example: 123456789, //123456789, rbxassetid://123, Roblox link"
     end
     if isDuplicate(assetId) then
-        return nil, "Lagu (ID " .. extractAssetId(assetId) .. ") sudah ada di playlist"
+        return nil, "Song (ID " .. extractAssetId(assetId) .. ") already in playlist"
     end
 
     statusCb("🔍 Validating audio...")
@@ -324,9 +323,9 @@ local function submitSong(rawName, rawId, statusCb)
         submittedBy = player.UserId, submittedByName = player.Name,
         submittedAt = os.time(), loudness = loudnessOrErr,
     })
-    if not r or not r.Body then return nil, "Gagal upload (cek koneksi)" end
+    if not r or not r.Body then return nil, "Upload failed (check connection)" end
     local ok2, dec = pcall(function() return HttpService:JSONDecode(r.Body) end)
-    if not ok2 or not dec or not dec.name then return nil, "Response Firebase invalid" end
+    if not ok2 or not dec or not dec.name then return nil, "Invalid Firebase response" end
 
     local entry = {
         name = name, id = assetId,
@@ -347,12 +346,12 @@ local function toggleRating(entry, kind)
     local base = "/ratings/" .. entry.ratingsKey .. "/"
     if entry[kind][myUserId] then
         entry[kind][myUserId] = nil
-        task.spawn(function() deleteFB(base .. kind .. "/" .. myUserId .. ".json") end)
+        task.spawn(function() removeFB(base .. kind .. "/" .. myUserId .. ".json") end)
     else
         entry[kind][myUserId] = true
         if entry[opposite][myUserId] then
             entry[opposite][myUserId] = nil
-            task.spawn(function() deleteFB(base .. opposite .. "/" .. myUserId .. ".json") end)
+            task.spawn(function() removeFB(base .. opposite .. "/" .. myUserId .. ".json") end)
         end
         task.spawn(function() putFB(base .. kind .. "/" .. myUserId .. ".json", true) end)
     end
@@ -419,7 +418,7 @@ end
 
 local function getModeText()
     if musicState == 1 then return "🎵"
-    elseif musicState == 2 then return "🎵+🔊"
+    elseif musicState == 2 then return "🎵🔊"
     else return "🔊" end
 end
 local function getModeColor()
@@ -534,7 +533,6 @@ end
 local function createMusicUI()
     local gui = mk("ScreenGui", {Name = "REN_MusicUI", ResetOnSpawn = false, DisplayOrder = 250}, pg)
 
-    -- icon
     local icon = mk("TextButton", {
         Size = UDim2.fromOffset(40, 40), Position = CONFIG.DefaultIconPos,
         BackgroundColor3 = Color3.fromRGB(22, 26, 40), Text = "🎵", TextSize = 18,
@@ -543,7 +541,6 @@ local function createMusicUI()
     corner(icon, 20)
     mk("UIStroke", {Color = GREEN, Thickness = 2}, icon)
 
-    -- panel
     local panel = mk("Frame", {
         Size = UDim2.fromOffset(CONFIG.DefaultSize.X, CONFIG.DefaultSize.Y),
         Position = CONFIG.DefaultPanelPos,
@@ -553,22 +550,27 @@ local function createMusicUI()
     corner(panel, 10)
     mk("UIStroke", {Color = GREEN, Thickness = 1.5}, panel)
 
-    -- header
     local header = mk("Frame", {Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, Active = true}, panel)
-    local hTitle = label(header, {
-        Size = UDim2.new(1, -44, 1, 0), Position = UDim2.fromOffset(8, 0),
-        TextColor3 = GREEN, Font = Enum.Font.GothamBold, TextSize = 11,
-        TextTruncate = Enum.TextTruncate.AtEnd,
-    })
+
     local uploadBtn = button(header, {
-        Size = UDim2.fromOffset(28, 18), Position = UDim2.new(1, -34, 0, 3),
-        BackgroundColor3 = Color3.fromRGB(0, 180, 130), Text = "➕", TextSize = 11,
+        Size = UDim2.fromOffset(60, 16), Position = UDim2.fromOffset(4, 4),
+        BackgroundColor3 = Color3.fromRGB(0, 180, 130), Text = "Upload Song", TextSize = 8,
     })
 
-    -- search row
+    local hTitle = label(header, {
+        Size = UDim2.new(1, -108, 1, 0), Position = UDim2.fromOffset(66, 0),
+        TextColor3 = GREEN, Font = Enum.Font.GothamBold, TextSize = 10,
+        TextTruncate = Enum.TextTruncate.AtEnd, TextXAlignment = Enum.TextXAlignment.Center,
+    })
+
+    local modeBtn = button(header, {
+        Size = UDim2.fromOffset(36, 16), Position = UDim2.new(1, -40, 0, 4),
+        BackgroundColor3 = getModeColor(), Text = getModeText(), TextSize = 10,
+    })
+
     local searchBox = input(panel, {
-        Size = UDim2.new(1, -86, 0, 20), Position = UDim2.fromOffset(8, 26),
-        PlaceholderText = "Cari lagu...",
+        Size = UDim2.new(1, -60, 0, 20), Position = UDim2.fromOffset(8, 26),
+        PlaceholderText = "Search songs...",
     })
     local function smallBtn(x, text, bg)
         return button(panel, {
@@ -576,11 +578,9 @@ local function createMusicUI()
             BackgroundColor3 = bg or Color3.fromRGB(35, 40, 55), Text = text, TextSize = 11,
         })
     end
-    local favFilterBtn = smallBtn(-74, "♡")
-    local sortLikesBtn = smallBtn(-51, "📊", Color3.fromRGB(60, 90, 60))
-    local shuffleBtn   = smallBtn(-28, "🔀")
+    local sortLikesBtn = smallBtn(-48, "📊", Color3.fromRGB(60, 90, 60))
+    local shuffleBtn   = smallBtn(-24, "🔀")
 
-    -- list
     local listFrame = mk("ScrollingFrame", {
         Size = UDim2.new(1, -16, 1, -118), Position = UDim2.fromOffset(8, 50),
         BackgroundColor3 = Color3.fromRGB(25, 30, 42), BorderSizePixel = 0,
@@ -595,7 +595,6 @@ local function createMusicUI()
         PaddingRight = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3),
     }, listFrame)
 
-    -- now playing + report
     local nowPlaying = label(panel, {
         Size = UDim2.new(1, -44, 0, 16), Position = UDim2.new(0, 8, 1, -64),
         TextColor3 = Color3.fromRGB(240, 240, 250), Font = Enum.Font.GothamBold, TextSize = 10,
@@ -606,7 +605,6 @@ local function createMusicUI()
         BackgroundColor3 = Color3.fromRGB(90, 40, 40), Text = "🚩", TextSize = 9,
     }, 4)
 
-    -- controls (1 baris)
     local controls = mk("Frame", {
         Size = UDim2.new(1, -16, 0, 24), Position = UDim2.new(0, 8, 1, -44), BackgroundTransparency = 1,
     }, panel)
@@ -616,24 +614,21 @@ local function createMusicUI()
     }, controls)
     local function ctl(order, text, bg, size)
         return button(controls, {
-            Size = UDim2.new(0.2, -4, 1, 0), LayoutOrder = order,
+            Size = UDim2.new(0.25, -4, 1, 0), LayoutOrder = order,
             BackgroundColor3 = bg, Text = text, TextSize = size or 13,
         }, 6)
     end
     local prevBtn = ctl(1, "⏮", Color3.fromRGB(40, 46, 66))
     local playBtn = ctl(2, "⏸", Color3.fromRGB(0, 200, 140))
     local nextBtn = ctl(3, "⏭", Color3.fromRGB(40, 46, 66))
-    local modeBtn = ctl(4, getModeText(), getModeColor(), 9)
-    local volBtn  = ctl(5, "", Color3.fromRGB(40, 46, 66), 9)
+    local volBtn  = ctl(4, "", Color3.fromRGB(40, 46, 66), 9)
 
-    -- resize handle (pojok kanan bawah)
     local resizeHandle = mk("TextButton", {
         Size = UDim2.fromOffset(18, 18), Position = UDim2.new(1, -18, 1, -18),
         BackgroundTransparency = 1, Text = "◢", TextColor3 = GREEN, TextSize = 14,
         BorderSizePixel = 0, AutoButtonColor = false, ZIndex = 30,
     }, panel)
 
-    -- upload dialog
     local dialog = mk("Frame", {
         Size = UDim2.new(1, -16, 0, 140), Position = UDim2.fromOffset(8, 50),
         BackgroundColor3 = Color3.fromRGB(15, 18, 30), BorderSizePixel = 0, Visible = false, ZIndex = 20,
@@ -641,12 +636,12 @@ local function createMusicUI()
     corner(dialog, 8)
     mk("UIStroke", {Color = GREEN, Thickness = 1.5}, dialog)
     label(dialog, {
-        Size = UDim2.new(1, -16, 0, 18), Position = UDim2.fromOffset(8, 4), Text = "➕ Upload Lagu",
+        Size = UDim2.new(1, -16, 0, 18), Position = UDim2.fromOffset(8, 4), Text = "➕ Upload Song",
         TextColor3 = GREEN, Font = Enum.Font.GothamBold, TextSize = 11, ZIndex = 21,
     })
     local nameInput = input(dialog, {
         Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(8, 24),
-        PlaceholderText = "Nama lagu...", ZIndex = 21,
+        PlaceholderText = "Song name...", ZIndex = 21,
     })
     local idInput = input(dialog, {
         Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(8, 50),
@@ -654,7 +649,7 @@ local function createMusicUI()
     })
     label(dialog, {
         Size = UDim2.new(1, -16, 0, 12), Position = UDim2.fromOffset(8, 75),
-        Text = "Contoh: 123456789 • //123456789 • link Roblox",
+        Text = "Example: 123456789 • //123456789 • Roblox link",
         TextColor3 = Color3.fromRGB(120, 130, 150), TextSize = 8, ZIndex = 21,
     })
     local statusLbl = label(dialog, {
@@ -663,7 +658,7 @@ local function createMusicUI()
     })
     local cancelBtn = button(dialog, {
         Size = UDim2.new(0.5, -12, 0, 22), Position = UDim2.new(0, 8, 1, -28),
-        BackgroundColor3 = Color3.fromRGB(60, 65, 80), Text = "Batal", TextSize = 10, ZIndex = 21,
+        BackgroundColor3 = Color3.fromRGB(60, 65, 80), Text = "Cancel", TextSize = 10, ZIndex = 21,
     })
     local submitBtn = button(dialog, {
         Size = UDim2.new(0.5, -12, 0, 22), Position = UDim2.new(0.5, 4, 1, -28),
@@ -671,7 +666,6 @@ local function createMusicUI()
         TextSize = 10, ZIndex = 21,
     })
 
-    -- report dialog
     local reportDialog = mk("Frame", {
         Size = UDim2.new(1, -16, 0, 150), Position = UDim2.fromOffset(8, 50),
         BackgroundColor3 = Color3.fromRGB(25, 15, 15), BorderSizePixel = 0, Visible = false, ZIndex = 20,
@@ -679,7 +673,7 @@ local function createMusicUI()
     corner(reportDialog, 8)
     mk("UIStroke", {Color = Color3.fromRGB(220, 80, 80), Thickness = 1.5}, reportDialog)
     label(reportDialog, {
-        Size = UDim2.new(1, -16, 0, 18), Position = UDim2.fromOffset(8, 4), Text = "🚩 Report Lagu",
+        Size = UDim2.new(1, -16, 0, 18), Position = UDim2.fromOffset(8, 4), Text = "🚩 Report Song",
         TextColor3 = Color3.fromRGB(255, 120, 120), Font = Enum.Font.GothamBold, TextSize = 11, ZIndex = 21,
     })
     local rSongLbl = label(reportDialog, {
@@ -689,7 +683,7 @@ local function createMusicUI()
     })
     local reasonInput = input(reportDialog, {
         Size = UDim2.new(1, -16, 0, 66), Position = UDim2.fromOffset(8, 40),
-        BackgroundColor3 = Color3.fromRGB(35, 25, 30), PlaceholderText = "Alasan report...",
+        BackgroundColor3 = Color3.fromRGB(35, 25, 30), PlaceholderText = "Report reason...",
         TextYAlignment = Enum.TextYAlignment.Top, MultiLine = true, TextWrapped = true, ZIndex = 21,
     })
     local rStatus = label(reportDialog, {
@@ -698,17 +692,17 @@ local function createMusicUI()
     })
     local rCancelBtn = button(reportDialog, {
         Size = UDim2.new(0.5, -12, 0, 22), Position = UDim2.new(0, 8, 1, -28),
-        BackgroundColor3 = Color3.fromRGB(60, 65, 80), Text = "Batal", TextSize = 10, ZIndex = 21,
+        BackgroundColor3 = Color3.fromRGB(60, 65, 80), Text = "Cancel", TextSize = 10, ZIndex = 21,
     })
     local rSendBtn = button(reportDialog, {
         Size = UDim2.new(0.5, -12, 0, 22), Position = UDim2.new(0.5, 4, 1, -28),
-        BackgroundColor3 = Color3.fromRGB(200, 60, 60), Text = "Kirim", TextColor3 = Color3.new(1, 1, 1),
+        BackgroundColor3 = Color3.fromRGB(200, 60, 60), Text = "Send", TextColor3 = Color3.new(1, 1, 1),
         TextSize = 10, ZIndex = 21,
     })
 
     -- ══ LIST ROWS ═══════════════════════════════════════════════════
     local updateUI, applyFilter, updateHighlights, rebuildList, applySort
-    local rowsByIdx, showFavOnly = {}, false
+    local rowsByIdx = {}
 
     local function buildRow(idx, entry)
         local isCur = (idx == currentIndex)
@@ -717,15 +711,8 @@ local function createMusicUI()
             BackgroundColor3 = isCur and Color3.fromRGB(45, 80, 65) or Color3.fromRGB(32, 38, 52),
         }, listFrame)
 
-        local fav = favorites[entry.id]
-        local favBtn = mk("TextButton", {
-            Size = UDim2.new(0, 18, 1, 0), BackgroundTransparency = 1, BorderSizePixel = 0,
-            Text = fav and "❤" or "♡", TextSize = 12, Font = Enum.Font.GothamBold,
-            TextColor3 = fav and Color3.fromRGB(255, 80, 100) or Color3.fromRGB(180, 180, 200),
-        }, row)
-
         local playRow = mk("TextButton", {
-            Size = UDim2.new(1, -74, 1, 0), Position = UDim2.fromOffset(18, 0),
+            Size = UDim2.new(1, -60, 1, 0), Position = UDim2.fromOffset(4, 0),
             BackgroundTransparency = 1, BorderSizePixel = 0, TextSize = 10,
             TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
             Text = "", Font = Enum.Font.Gotham,
@@ -748,23 +735,17 @@ local function createMusicUI()
         end
         updateRatingUI()
 
-        favBtn.MouseButton1Click:Connect(function()
-            if favorites[entry.id] then
-                favorites[entry.id] = nil
-                favBtn.Text = "♡"; favBtn.TextColor3 = Color3.fromRGB(180, 180, 200)
-            else
-                favorites[entry.id] = true
-                favBtn.Text = "❤"; favBtn.TextColor3 = Color3.fromRGB(255, 80, 100)
-            end
-            saveFavs(favorites); applyFilter()
-        end)
         playRow.MouseButton1Click:Connect(function()
             for i, e in ipairs(Playlist) do
                 if e == entry then playSongAt(i); break end
             end
         end)
-        likeBtn.MouseButton1Click:Connect(function() toggleRating(entry, "likes"); updateRatingUI() end)
-        dislikeBtn.MouseButton1Click:Connect(function() toggleRating(entry, "dislikes"); updateRatingUI() end)
+        likeBtn.MouseButton1Click:Connect(function()
+            toggleRating(entry, "likes"); updateRatingUI()
+        end)
+        dislikeBtn.MouseButton1Click:Connect(function()
+            toggleRating(entry, "dislikes"); updateRatingUI()
+        end)
 
         rowsByIdx[idx] = {row = row, playRow = playRow, entry = entry}
     end
@@ -783,8 +764,7 @@ local function createMusicUI()
         local txt = (searchBox.Text or ""):lower()
         for _, d in pairs(rowsByIdx) do
             local textMatch = txt == "" or d.entry.name:lower():find(txt, 1, true) ~= nil
-            local favMatch = (not showFavOnly) or favorites[d.entry.id]
-            d.row.Visible = textMatch and (favMatch and true or false)
+            d.row.Visible = textMatch
         end
     end
 
@@ -805,11 +785,7 @@ local function createMusicUI()
     applySort = function(mode)
         local cur = Playlist[currentIndex]
         if mode == "likes" then
-            table.sort(Playlist, function(a, b)
-                local la, lb = countKeys(a.likes), countKeys(b.likes)
-                if la ~= lb then return la > lb end
-                return a.name < b.name
-            end)
+            sortByScore(Playlist)
         else
             shuffleList(Playlist)
         end
@@ -837,14 +813,6 @@ local function createMusicUI()
     -- ══ EVENTS ══════════════════════════════════════════════════════
     searchBox:GetPropertyChangedSignal("Text"):Connect(applyFilter)
 
-    favFilterBtn.MouseButton1Click:Connect(function()
-        showFavOnly = not showFavOnly
-        favFilterBtn.Text = showFavOnly and "❤" or "♡"
-        favFilterBtn.TextColor3 = showFavOnly and Color3.fromRGB(255, 80, 100) or TXT
-        favFilterBtn.BackgroundColor3 = showFavOnly and Color3.fromRGB(60, 30, 40) or Color3.fromRGB(35, 40, 55)
-        applyFilter()
-    end)
-
     local function markSort(likes)
         sortLikesBtn.BackgroundColor3 = likes and Color3.fromRGB(60, 90, 60) or Color3.fromRGB(35, 40, 55)
         shuffleBtn.BackgroundColor3 = likes and Color3.fromRGB(35, 40, 55) or Color3.fromRGB(60, 90, 60)
@@ -852,7 +820,6 @@ local function createMusicUI()
     sortLikesBtn.MouseButton1Click:Connect(function() markSort(true); applySort("likes") end)
     shuffleBtn.MouseButton1Click:Connect(function() markSort(false); applySort("shuffle") end)
 
-    -- upload
     uploadBtn.MouseButton1Click:Connect(function()
         dialog.Visible = true; statusLbl.Text = ""; reportDialog.Visible = false
     end)
@@ -871,7 +838,7 @@ local function createMusicUI()
             end)
             submitting = false; submitBtn.Visible = true
             if entry then
-                statusLbl.Text = "✅ Berhasil!"; statusLbl.TextColor3 = GREEN
+                statusLbl.Text = "✅ Success!"; statusLbl.TextColor3 = GREEN
                 task.wait(0.8)
                 dialog.Visible = false
                 nameInput.Text = ""; idInput.Text = ""; statusLbl.Text = ""
@@ -884,7 +851,6 @@ local function createMusicUI()
         end)
     end)
 
-    -- report
     reportBtn.MouseButton1Click:Connect(function()
         reportDialog.Visible = true; dialog.Visible = false
         rStatus.Text = ""; reasonInput.Text = ""
@@ -899,19 +865,19 @@ local function createMusicUI()
     rSendBtn.MouseButton1Click:Connect(function()
         if sendingReport then return end
         local entry = Playlist[currentIndex]
-        if not entry then rStatus.Text = "❌ Tidak ada lagu"; rStatus.TextColor3 = RED; return end
+        if not entry then rStatus.Text = "❌ No song"; rStatus.TextColor3 = RED; return end
         local reason = reasonInput.Text
         if not reason or #reason < 5 then
-            rStatus.Text = "❌ Min 5 karakter"; rStatus.TextColor3 = RED; return
+            rStatus.Text = "❌ Min 5 characters"; rStatus.TextColor3 = RED; return
         end
         if #reason > 500 then reason = reason:sub(1, 500) end
         sendingReport = true; rSendBtn.Text = "..."
-        rStatus.Text = "📤 Mengirim..."; rStatus.TextColor3 = INFO
+        rStatus.Text = "📤 Sending..."; rStatus.TextColor3 = INFO
         task.spawn(function()
             local ok, err = sendReport(entry, reason)
-            sendingReport = false; rSendBtn.Text = "Kirim"
+            sendingReport = false; rSendBtn.Text = "Send"
             if ok then
-                rStatus.Text = "✅ Terkirim!"; rStatus.TextColor3 = GREEN
+                rStatus.Text = "✅ Sent!"; rStatus.TextColor3 = GREEN
                 task.wait(1.2); reportDialog.Visible = false
                 reasonInput.Text = ""; rStatus.Text = ""
             else
@@ -920,7 +886,6 @@ local function createMusicUI()
         end)
     end)
 
-    -- controls
     prevBtn.MouseButton1Click:Connect(function() playSongAt(currentIndex - 1) end)
     nextBtn.MouseButton1Click:Connect(function() playSongAt(currentIndex + 1) end)
     playBtn.MouseButton1Click:Connect(function()
@@ -940,7 +905,7 @@ local function createMusicUI()
         updateUI()
     end)
 
-    -- ══ DRAG / RESIZE (satu handler) ════════════════════════════════
+    -- ══ DRAG / RESIZE ═══════════════════════════════════════════════
     local function isPress(i)
         return i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch
     end
@@ -990,7 +955,6 @@ local function createMusicUI()
         drag = nil
     end)
 
-    -- ══ INIT: bangun list langsung (FIX list kosong) ═══════════════
     rebuildList()
     updateUI()
 end
@@ -999,4 +963,4 @@ end
 initMusic()
 createMusicUI()
 
-print("[Music] READY v3.3 | Playlist:", #Playlist)
+print("[Music] READY v3.5 | Playlist:", #Playlist, "| Mode:", musicState, "| PlaceId:", game.PlaceId)
