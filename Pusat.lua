@@ -9,6 +9,11 @@
 ]]
 
 local genv = (getgenv and getgenv()) or _G
+
+-- Tunggu game siap dulu supaya JobId sudah terisi (JobId kosong di awal bisa bikin
+-- server baru dikira server lama).
+if not game:IsLoaded() then game.Loaded:Wait() end
+
 local jobKey = (game.JobId ~= "" and game.JobId) or "studio"
 -- Guard per SERVER (JobId), bukan boolean. Di sebagian executor getgenv() tidak ke-reset
 -- saat pindah server, jadi flag boolean akan memblokir auto re-execute di server baru.
@@ -16,15 +21,13 @@ local jobKey = (game.JobId ~= "" and game.JobId) or "studio"
 if genv.REN_LOADED == jobKey then return end
 genv.REN_LOADED = jobKey
 
-if not game:IsLoaded() then game.Loaded:Wait() end
-
 -- ============================================================
 -- ⚙️ CONFIG
 -- ============================================================
 local CFG = {
     -- Webhook lama sudah bocor (repo GitHub publik). Hapus di Discord, buat baru, isi di sini.
     -- Kosong = error report ke Discord dimatikan.
-    Webhook   = "https://discord.com/api/webhooks/1564257126648512593/e3Xn_y8jduyENW6Vti7CBdinnqk8CTXixSliasOs3c8-OEqc45VKoGeIvIQ1-kGVliiH",
+    Webhook   = "",
     -- Link yang dijalankan otomatis di server berikutnya (gist kamu, yang mengarah ke Pusat.lua).
     -- Pusat.lua di GitHub HARUS berisi file loader ini (v1.2), kalau tidak yang jalan versi lama.
     LoaderURL = "https://gist.githubusercontent.com/rendays666/777a76b2701737e6692ed88631aa4768/raw/renrenhub-loader.lua",
@@ -274,6 +277,8 @@ local function queueReexec(force)
         return false
     end
     local src = ([[
+        local g = (getgenv and getgenv()) or _G
+        g.REN_VIA_QUEUE = true
         repeat task.wait() until game:IsLoaded() and game:GetService("Players").LocalPlayer
         task.wait(1)
         local ok, err = pcall(function()
@@ -294,11 +299,17 @@ pcall(function()
     end)
 end)
 
--- Cadangan: teleport mulai tapi antrean belum terpasang → pasang sekarang
+-- Pasang antrean LAGI tepat saat teleport mulai (pindah manual, server hop, atau dipindah server).
+-- Sebagian executor mengabaikan/menghapus antrean yang dipasang jauh sebelum teleport; pola ini
+-- (dipakai Infinite Yield juga) yang paling andal. Kalau terantre dobel, guard JobId menahan duplikat.
+local teleportQueued = false
 pcall(function()
     player.OnTeleport:Connect(function(state)
-        if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
-            queueReexec()
+        if state == Enum.TeleportState.Failed then
+            teleportQueued = false
+        elseif not teleportQueued then
+            teleportQueued = true
+            queueReexec(true)
         end
     end)
 end)
@@ -311,6 +322,10 @@ task.spawn(function()
     setProgress(0, "Starting...")
     addLog("🚀 REN Hub Loader v1.2", GREEN)
     addLog("Place: " .. tostring(game.PlaceId))
+    if genv.REN_VIA_QUEUE then
+        genv.REN_VIA_QUEUE = nil
+        addLog("🔄 Auto re-execute berhasil (setelah pindah server)", GREEN)
+    end
 
     -- Antrekan auto re-execute DI AWAL (bukan di akhir): kalau ada step yang macet atau
     -- kamu pindah server saat masih loading, antrean tetap sudah terpasang.
