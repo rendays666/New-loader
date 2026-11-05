@@ -1,6 +1,6 @@
 --[[
   ╔══════════════════════════════════════════════════════════════════╗
-  ║  REN HUB — MASTER LOADER v1.1                                    ║
+  ║  REN HUB — MASTER LOADER v1.2                                    ║
   ║  • Guard anti-eksekusi ganda                                     ║
   ║  • Tiap script jalan di thread sendiri (loader tidak ketahan)    ║
   ║  • Auto re-execute saat ganti server (queue_on_teleport)         ║
@@ -9,9 +9,12 @@
 ]]
 
 local genv = (getgenv and getgenv()) or _G
--- Mau paksa load ulang? Jalankan dulu: getgenv().REN_LOADED = nil
-if genv.REN_LOADED then return end
-genv.REN_LOADED = true
+local jobKey = (game.JobId ~= "" and game.JobId) or "studio"
+-- Guard per SERVER (JobId), bukan boolean. Di sebagian executor getgenv() tidak ke-reset
+-- saat pindah server, jadi flag boolean akan memblokir auto re-execute di server baru.
+-- Mau paksa load ulang di server yang sama? Jalankan dulu: getgenv().REN_LOADED = nil
+if genv.REN_LOADED == jobKey then return end
+genv.REN_LOADED = jobKey
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
@@ -22,8 +25,9 @@ local CFG = {
     -- Webhook lama sudah bocor (repo GitHub publik). Hapus di Discord, buat baru, isi di sini.
     -- Kosong = error report ke Discord dimatikan.
     Webhook   = "https://discord.com/api/webhooks/1564257126648512593/e3Xn_y8jduyENW6Vti7CBdinnqk8CTXixSliasOs3c8-OEqc45VKoGeIvIQ1-kGVliiH",
-    -- Nama file ini di GitHub kamu (harus sama persis dengan yang di-upload)
-    LoaderURL = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/ren_loader.lua",
+    -- Link yang dijalankan otomatis di server berikutnya (gist kamu, yang mengarah ke Pusat.lua).
+    -- Pusat.lua di GitHub HARUS berisi file loader ini (v1.2), kalau tidak yang jalan versi lama.
+    LoaderURL = "https://gist.githubusercontent.com/rendays666/777a76b2701737e6692ed88631aa4768/raw/renrenhub-loader.lua",
     Steps = {
         { name = "Tracker", url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/Database%20supabase" },
         { name = "Music",   url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/music.lua" },
@@ -259,8 +263,9 @@ end
 -- queue_on_teleport menyimpan kode yang otomatis jalan di server berikutnya.
 -- Kalau executor kamu tidak punya fungsi ini, taruh loader di folder autoexec.
 -- ============================================================
-local function queueReexec()
-    if genv.REN_QUEUED then return true end
+local function queueReexec(force)
+    -- Flag per server (JobId), bukan boolean, supaya tidak "nyangkut" antar server
+    if not force and genv.REN_QUEUED == jobKey then return true end
     local q = queue_on_teleport
         or (syn and syn.queue_on_teleport)
         or (fluxus and fluxus.queue_on_teleport)
@@ -269,20 +274,32 @@ local function queueReexec()
         return false
     end
     local src = ([[
-        if not game:IsLoaded() then game.Loaded:Wait() end
+        repeat task.wait() until game:IsLoaded() and game:GetService("Players").LocalPlayer
         task.wait(1)
-        loadstring(game:HttpGet("%s", true))()
+        local ok, err = pcall(function()
+            loadstring(game:HttpGet("%s", true))()
+        end)
+        if not ok then warn("[REN] auto re-execute gagal: " .. tostring(err)) end
     ]]):format(CFG.LoaderURL)
     local ok = pcall(q, src)
-    if ok then genv.REN_QUEUED = true end
+    if ok then genv.REN_QUEUED = jobKey end
     return ok
 end
 
--- Teleport gagal → antrean mungkin sudah terpakai/terhapus, antrekan lagi
+-- Teleport gagal → antrean mungkin sudah terpakai/terhapus, antrekan lagi.
+-- (Kalau terantre dobel, guard JobId di atas membuat salah satunya langsung berhenti.)
 pcall(function()
     game:GetService("TeleportService").TeleportInitFailed:Connect(function()
-        genv.REN_QUEUED = nil
-        queueReexec()
+        queueReexec(true)
+    end)
+end)
+
+-- Cadangan: teleport mulai tapi antrean belum terpasang → pasang sekarang
+pcall(function()
+    player.OnTeleport:Connect(function(state)
+        if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
+            queueReexec()
+        end
     end)
 end)
 
@@ -292,8 +309,13 @@ end)
 task.spawn(function()
     task.wait(0.3)
     setProgress(0, "Starting...")
-    addLog("🚀 REN Hub Loader v1.1", GREEN)
+    addLog("🚀 REN Hub Loader v1.2", GREEN)
     addLog("Place: " .. tostring(game.PlaceId))
+
+    -- Antrekan auto re-execute DI AWAL (bukan di akhir): kalau ada step yang macet atau
+    -- kamu pindah server saat masih loading, antrean tetap sudah terpasang.
+    local queued = queueReexec()
+    addLog(queued and "🔄 Auto re-execute siap" or "⚠️ Auto re-execute tidak aktif", queued and GREEN or ORANGE)
 
     local errors = {}
 
@@ -312,8 +334,6 @@ task.spawn(function()
     end
 
     setProgress(#CFG.Steps, "Finalizing...")
-    local queued = queueReexec()
-    addLog(queued and "🔄 Auto re-execute siap" or "⚠️ Auto re-execute tidak aktif", queued and GREEN or ORANGE)
     task.wait(0.3)
 
     if #errors > 0 then
@@ -344,4 +364,4 @@ task.spawn(function()
     closeGUI()
 end)
 
-print("[REN] Master Loader v1.1 started.")
+print("[REN] Master Loader v1.2 started.")
