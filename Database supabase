@@ -1,6 +1,18 @@
 -- ╔══════════════════════════════════════════════════════════════════╗
--- ║  REN TRACKER v6.2 — Clean (no GUI, silent init)                   ║
+-- ║  REN TRACKER v6.3 — Clean (no GUI, silent init)                   ║
+-- ║  • Instance lama otomatis dimatikan saat re-execute (anti lag)    ║
+-- ║  • Error Supabase tampil di console (warn) + retry otomatis       ║
+-- ║  • Nama game di-cache (GetProductInfo tidak dipanggil berulang)   ║
 -- ╚══════════════════════════════════════════════════════════════════╝
+
+local genv = (getgenv and getgenv()) or _G
+
+-- Matikan instance lama kalau script ini dieksekusi ulang.
+-- Sebelumnya: tiap re-execute menambah loop heartbeat baru yang tidak pernah berhenti.
+if type(genv.REN_TRACKER_STOP) == "function" then pcall(genv.REN_TRACKER_STOP) end
+local myGen = (genv.REN_TRACKER_GEN or 0) + 1
+genv.REN_TRACKER_GEN = myGen
+local function alive() return genv.REN_TRACKER_GEN == myGen end
 
 local CONFIG = {
     URL = "https://xtijiyyzqbxsfkeojoiv.supabase.co",
@@ -9,6 +21,7 @@ local CONFIG = {
     HeartbeatInterval = 30,
     FullPushInterval  = 300,
     TrackDebounce     = 60,
+    Debug             = true,   -- true = tampilkan error database di console
 }
 
 local Players      = game:GetService("Players")
@@ -21,79 +34,88 @@ if not player then return warn("[REN] No LocalPlayer") end
 local sessionId = tostring(player.UserId)
 
 -- ═══════════════════════════════════════════════════════════════════
--- HTTP DETECTION
+-- DEBUG LOG (di-throttle biar console tidak banjir)
 -- ═══════════════════════════════════════════════════════════════════
-local function tryRequest(url, body)
-    local ok, res = pcall(request, {
-        Url = url, Method = "POST",
-        Headers = { apikey = CONFIG.KEY, ["Content-Type"] = "application/json" },
-        Body = body,
-    })
-    if not ok or not res then
-        return { success = false, err = "request() threw: " .. tostring(res) }
-    end
-    local code = tonumber(res.StatusCode) or 0
-    local rbody = tostring(res.Body or "")
-    if code >= 200 and code < 300 then
-        return { success = true, code = code, body = rbody }
-    end
-    return { success = false, code = code, body = rbody,
-             err = "HTTP " .. code .. ": " .. tostring(res.StatusMessage or "") }
+local lastWarn = {}
+local function dbg(tag, msg)
+    if not CONFIG.Debug then return end
+    local now = os.clock()
+    if lastWarn[tag] and now - lastWarn[tag] < 30 then return end
+    lastWarn[tag] = now
+    warn("[REN] " .. tag .. ": " .. tostring(msg))
 end
 
-local function tryHttpRequest(url, body)
-    local ok, res = pcall(http_request, {
-        Url = url, Method = "POST",
-        Headers = { apikey = CONFIG.KEY, ["Content-Type"] = "application/json" },
-        Body = body,
-    })
-    if not ok or not res then
-        return { success = false, err = "http_request threw: " .. tostring(res) }
-    end
-    local code = tonumber(res.StatusCode) or 0
-    local rbody = tostring(res.Body or "")
-    if code >= 200 and code < 300 then
-        return { success = true, code = code, body = rbody }
-    end
-    return { success = false, code = code, body = rbody,
-             err = "HTTP " .. code .. ": " .. tostring(res.StatusMessage or "") }
-end
-
-local httpFn, methodName
+-- ═══════════════════════════════════════════════════════════════════
+-- HTTP
+-- ═══════════════════════════════════════════════════════════════════
+local rawRequest, methodName
 if typeof(request) == "function" then
-    httpFn, methodName = tryRequest, "request()"
+    rawRequest, methodName = request, "request()"
 elseif typeof(http_request) == "function" then
-    httpFn, methodName = tryHttpRequest, "http_request()"
-elseif syn and syn.request then
-    httpFn, methodName = function(u,b)
-        local ok, res = pcall(syn.request, {Url=u,Method="POST",
-            Headers={apikey=CONFIG.KEY,["Content-Type"]="application/json"},Body=b})
-        if not ok or not res then return {success=false, err="syn.request threw"} end
-        local code = tonumber(res.StatusCode) or 0
-        local rbody = tostring(res.Body or "")
-        if code >= 200 and code < 300 then return {success=true, code=code, body=rbody} end
-        return {success=false, code=code, body=rbody, err="HTTP "..code}
-    end, "syn.request()"
+    rawRequest, methodName = http_request, "http_request()"
+elseif syn and typeof(syn.request) == "function" then
+    rawRequest, methodName = syn.request, "syn.request()"
+elseif fluxus and typeof(fluxus.request) == "function" then
+    rawRequest, methodName = fluxus.request, "fluxus.request()"
 end
 
-if not httpFn then
+if not rawRequest then
     return warn("[REN] No HTTP method available in executor")
 end
 
+local function post(url, body)
+    local ok, res = pcall(rawRequest, {
+        Url = url, Method = "POST",
+        Headers = { apikey = CONFIG.KEY, ["Content-Type"] = "application/json" },
+        Body = body,
+    })
+    if not ok or type(res) ~= "table" then
+        return { success = false, err = "request threw: " .. tostring(res) }
+    end
+    local code  = tonumber(res.StatusCode) or 0
+    local rbody = tostring(res.Body or "")
+    if code >= 200 and code < 300 then
+        return { success = true, code = code, body = rbody }
+    end
+    return { success = false, code = code, body = rbody,
+             err = "HTTP " .. code .. " " .. tostring(res.StatusMessage or "") }
+end
+
+-- Retry 1x untuk error jaringan / 5xx. Error 4xx (key salah, fungsi tidak ada,
+-- RLS menolak) tidak di-retry karena hasilnya akan sama.
 local function callRPC(fnName, payload)
-    local url = CONFIG.URL .. "/rest/v1/rpc/" .. fnName
-    return httpFn(url, HttpService:JSONEncode(payload or {}))
+    local url  = CONFIG.URL .. "/rest/v1/rpc/" .. fnName
+    local body = HttpService:JSONEncode(payload or {})
+    local res
+    for attempt = 1, 2 do
+        res = post(url, body)
+        if res.success then return res end
+        if res.code and res.code >= 400 and res.code < 500 then break end
+        if attempt < 2 then task.wait(2) end
+    end
+    dbg(fnName, tostring(res.err) .. " | " .. tostring(res.body or ""):sub(1, 200))
+    return res
 end
 
 -- ═══════════════════════════════════════════════════════════════════
 -- TRACKER
 -- ═══════════════════════════════════════════════════════════════════
-local State = { lastFullPush = 0, deleted = false,
-                hbInFlight = false, hbQueued = false, trackCache = {} }
+local State = { lastFullPush = 0, deleted = false, trackCache = {} }
+local connections = {}
 
+genv.REN_TRACKER_STOP = function()
+    State.deleted = true
+    for _, c in ipairs(connections) do pcall(function() c:Disconnect() end) end
+end
+
+local cachedGameName
 local function getGameName()
-    local o, i = pcall(function() return Marketplace:GetProductInfo(game.PlaceId) end)
-    if o and type(i) == "table" and i.Name then return i.Name end
+    if cachedGameName then return cachedGameName end
+    local ok, info = pcall(function() return Marketplace:GetProductInfo(game.PlaceId) end)
+    if ok and type(info) == "table" and info.Name then
+        cachedGameName = info.Name
+        return cachedGameName
+    end
     return "Unknown Game"
 end
 
@@ -105,24 +127,13 @@ local function doFullPush()
         p_session_id = sessionId, p_username = player.Name,
         p_user_id = player.UserId, p_place_id = tonumber(p),
         p_job_id = j, p_game_name = getGameName(),
-        p_join_url = "https://www.roblox.com/games/start?placeId="..p.."&gameInstanceId="..j,
-        p_profile_url = "https://www.roblox.com/users/"..player.UserId.."/profile",
+        p_join_url = "https://www.roblox.com/games/start?placeId=" .. p .. "&gameInstanceId=" .. j,
+        p_profile_url = "https://www.roblox.com/users/" .. player.UserId .. "/profile",
         p_executor = (identifyexecutor and identifyexecutor()) or "Unknown",
         p_timestamp = now,
     })
     if rr.success then State.lastFullPush = now end
-end
-
-local function heartbeat()
-    if State.hbInFlight then State.hbQueued = true; return end
-    State.hbInFlight = true
-    task.spawn(function()
-        local n = os.time()
-        if n - State.lastFullPush >= CONFIG.FullPushInterval then doFullPush()
-        else callRPC("ren_heartbeat", { p_session_id = sessionId, p_timestamp = n }) end
-        State.hbInFlight = false
-        if State.hbQueued then State.hbQueued = false; heartbeat() end
-    end)
+    return rr
 end
 
 local function deleteSession()
@@ -159,32 +170,44 @@ _G.REN = {
         return true
     end,
     refresh = doFullPush,
-    method = methodName,
+    method  = methodName,
+    -- Ketik di console/executor: _G.REN.test()  → lihat status code + isi balasan Supabase
+    test = function()
+        local r = callRPC("ren_heartbeat", { p_session_id = sessionId, p_timestamp = os.time() })
+        print("[REN] test →", "success=" .. tostring(r.success), "code=" .. tostring(r.code),
+              tostring(r.body or r.err))
+        return r
+    end,
 }
 
 -- ═══════════════════════════════════════════════════════════════════
--- START
+-- START (semua di thread terpisah supaya loader tidak ketahan)
 -- ═══════════════════════════════════════════════════════════════════
--- ✅ Push session DULU sebelum hook (hook bisa throw)
-doFullPush()
-trackExecute()
+pcall(function()
+    table.insert(connections, Players.PlayerRemoving:Connect(function(l)
+        if l == player then deleteSession() end
+    end))
+end)
 
--- ✅ Start heartbeat loop lebih awal
 task.spawn(function()
-    while not State.deleted do
+    doFullPush()
+    trackExecute()
+end)
+
+-- Satu loop saja, berurutan (tidak ada request yang numpuk).
+task.spawn(function()
+    while alive() and not State.deleted do
         task.wait(CONFIG.HeartbeatInterval)
-        heartbeat()
+        if not alive() or State.deleted then break end
+        local n = os.time()
+        if n - State.lastFullPush >= CONFIG.FullPushInterval then
+            doFullPush()
+        else
+            local r = callRPC("ren_heartbeat", { p_session_id = sessionId, p_timestamp = n })
+            -- Kalau heartbeat gagal, paksa full push di tick berikutnya (self-heal)
+            if not r.success then State.lastFullPush = 0 end
+        end
     end
 end)
 
--- ✅ Hook cleanup dibungkus pcall (BindToClose = server-only)
-pcall(function()
-    Players.PlayerRemoving:Connect(function(l)
-        if l == player then deleteSession() end
-    end)
-end)
-pcall(function()
-    game:BindToClose(function() deleteSession(); task.wait(1) end)
-end)
-
-print("[REN] Tracker aktif via " .. methodName)
+print("[REN] Tracker v6.3 aktif via " .. methodName)
