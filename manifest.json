@@ -17,7 +17,7 @@
       "description": "Support banyak game sekaligus",
       "imageUrl": "",
       "placeIds": [113273588963037]
-    },,
+    },
     {
       "id": "pistol arena",
       "name": "pistol arena",
@@ -25,7 +25,7 @@
       "description": "aimbot and auto headshot",
       "imageUrl": "",
       "placeIds": [87018676608089]
-    }
+    },
     {
       "id": "petapeta",
       "name": "peta peta",
