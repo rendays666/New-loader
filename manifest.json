@@ -17,7 +17,15 @@
       "description": "Support banyak game sekaligus",
       "imageUrl": "",
       "placeIds": [113273588963037]
-    },
+    },,
+    {
+      "id": "pistol arena",
+      "name": "pistol arena",
+      "scriptUrl": "https://raw.githubusercontent.com/rendays666/Pistol-arena/refs/heads/main/main.lua",
+      "description": "aimbot and auto headshot",
+      "imageUrl": "",
+      "placeIds": [87018676608089]
+    }
     {
       "id": "petapeta",
       "name": "peta peta",
