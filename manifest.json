@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "updated": "2026-11-05",
+  "scripts": [
+    {
+      "id": "centaura",
+      "name": "Centaura",
+      "scriptUrl": "https://raw.githubusercontent.com/user/repo/main/scripts/centaura.lua",
+      "description": "Auto-win Centaura",
+      "imageUrl": "",
+      "placeIds": [8735521924]
+    },
+    {
+      "id": "multi-game",
+      "name": "Multi Game Hub",
+      "scriptUrl": "https://raw.githubusercontent.com/user/repo/main/scripts/multi-game.lua",
+      "description": "Support banyak game sekaligus",
+      "imageUrl": "",
+      "placeIds": [113273588963037, 1111111111, 2222222222, 3333333333]
+    }
+  ],
+  "universal": [
+    {
+      "id": "universal",
+      "name": "Universal Script",
+      "scriptUrl": "https://raw.githubusercontent.com/user/repo/main/scripts/universal.lua",
+      "description": "Fallback untuk map apapun",
+      "imageUrl": ""
+    }
+  ]
+}
