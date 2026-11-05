@@ -6,17 +6,25 @@
       "id": "centaura",
       "name": "Centaura",
       "scriptUrl": "https://raw.githubusercontent.com/user/repo/main/scripts/centaura.lua",
-      "description": "Auto-win Centaura",
+      "description": "auto win centaura",
       "imageUrl": "",
       "placeIds": [8735521924]
     },
     {
-      "id": "multi-game",
-      "name": "Multi Game Hub",
-      "scriptUrl": "https://raw.githubusercontent.com/user/repo/main/scripts/multi-game.lua",
+      "id": "oneup",
+      "name": "+1 upgrade per kill",
+      "scriptUrl": "https://pastebin.com/raw/Vd2ZYevk",
       "description": "Support banyak game sekaligus",
       "imageUrl": "",
-      "placeIds": [113273588963037, 1111111111, 2222222222, 3333333333]
+      "placeIds": [113273588963037]
+    },
+    {
+      "id": "petapeta",
+      "name": "peta peta",
+      "scriptUrl": "https://raw.githubusercontent.com/rendays666/petapea/refs/heads/main/ytrendays.txt",
+      "description": "petapeta",
+      "imageUrl": "",
+      "placeIds": [14451515684]
     }
   ],
   "universal": [
