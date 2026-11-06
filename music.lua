@@ -353,9 +353,15 @@ local function main()
             return
         end
 
-        local success, rerr = pcall(fn, REN)
+        -- Setiap modul berbentuk `return function(REN) ... end`.
+        -- pcall(fn, REN) hanya menjalankan chunk-nya (yang cuma me-return
+        -- function), jadi function itu HARUS dipanggil lagi di sini.
+        local success, result = pcall(fn, REN)
+        if success and type(result) == "function" then
+            success, result = pcall(result, REN)
+        end
         if not success then
-            log("ERR", string.format("Eksekusi gagal '%s': %s", name, tostring(rerr)))
+            log("ERR", string.format("Eksekusi gagal '%s': %s", name, tostring(result)))
             fail()
             return
         end
