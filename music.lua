@@ -1,20 +1,9 @@
 --[[
-  RENRENHUB — MUSIC LOADER v3.6
-  Entry point. URL ini TIDAK berubah (kompatibel dengan script lain).
-  
-  Fitur:
-  - Loading GUI dengan log realtime per modul
-  - Auto-hide bila semua berhasil
-  - Tetap tampil bila ada error, dengan tombol Copy Logs
-  - Fallback sumbit.lua -> submit.lua
-  - Multi-URL & multi-HTTP fallback
-  - Cache-busting untuk raw.githubusercontent
+  RENRENHUB — MUSIC LOADER v3.6.1 (defensive)
+  Entry point. URL TIDAK berubah.
 ]]
 
--- ═══════════════════════════════════════════════════════════════════
--- CONSTANTS
--- ═══════════════════════════════════════════════════════════════════
-local SCRIPT_VERSION = "3.6"
+local SCRIPT_VERSION = "3.6.1"
 
 local BASE_URLS = {
     "https://raw.githubusercontent.com/rendays666/New-loader/main/music_modules/",
@@ -28,14 +17,11 @@ local MODULE_ORDER = {
     "bootstrap",
 }
 
--- Alias untuk file yang mungkin salah nama
 local NAME_ALIASES = {
     submit = { "submit", "sumbit" },
 }
 
--- ═══════════════════════════════════════════════════════════════════
--- LOG SYSTEM
--- ═══════════════════════════════════════════════════════════════════
+-- ═══ LOG SYSTEM ═══════════════════════════════════════════════════
 local Logs = {}
 local LogSink = nil
 
@@ -48,32 +34,35 @@ local function log(level, msg)
     end
 end
 
--- ═══════════════════════════════════════════════════════════════════
--- CLIPBOARD HELPER
--- ═══════════════════════════════════════════════════════════════════
+-- ═══ CLIPBOARD ════════════════════════════════════════════════════
 local function copyToClipboard(text)
-    if setclipboard then
-        local ok = pcall(setclipboard, text); if ok then return true end
-    end
-    if toclipboard then
-        local ok = pcall(toclipboard, text); if ok then return true end
-    end
-    if writeclipboard then
-        local ok = pcall(writeclipboard, text); if ok then return true end
+    for _, fnName in ipairs({"setclipboard", "toclipboard", "writeclipboard"}) do
+        local fn = rawget(getfenv(), fnName) or rawget(_G, fnName)
+        if type(fn) == "function" then
+            local ok = pcall(fn, text)
+            if ok then return true end
+        end
     end
     return false
 end
 
--- ═══════════════════════════════════════════════════════════════════
--- LOADING GUI
--- ═══════════════════════════════════════════════════════════════════
-local function buildLoadingUI()
+-- ═══ WAIT FOR LOCALPLAYER & PLAYERGUI ═════════════════════════════
+local function waitForPlayer(timeout)
     local Players = game:GetService("Players")
-    local player = Players.LocalPlayer
-    if not player then return nil end
-    local pg = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui", 10)
-    if not pg then return nil end
+    local t0 = tick()
+    repeat
+        local plr = Players.LocalPlayer
+        if plr then
+            local pg = plr:FindFirstChild("PlayerGui")
+            if pg then return plr, pg end
+        end
+        task.wait(0.2)
+    until tick() - t0 > (timeout or 30)
+    return nil, nil
+end
 
+-- ═══ LOADING GUI (dibuat setelah PlayerGui ada) ═══════════════════
+local function buildLoadingUI(player, pg)
     if pg:FindFirstChild("REN_MusicLoaderUI") then
         pg.REN_MusicLoaderUI:Destroy()
     end
@@ -97,44 +86,33 @@ local function buildLoadingUI()
         Size = UDim2.fromOffset(440, 340),
         Position = UDim2.new(0.5, -220, 0.5, -170),
         BackgroundColor3 = Color3.fromRGB(18, 22, 34),
-        BorderSizePixel = 0,
-        Active = true,
+        BorderSizePixel = 0, Active = true,
     }, gui)
     corner(frame, 10)
     mk("UIStroke", { Color = Color3.fromRGB(0, 220, 160), Thickness = 2 }, frame)
 
     mk("TextLabel", {
-        Size = UDim2.new(1, -16, 0, 22),
-        Position = UDim2.fromOffset(8, 6),
-        BackgroundTransparency = 1,
-        Text = "🎵 REN Music Loader v" .. SCRIPT_VERSION,
+        Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(8, 6),
+        BackgroundTransparency = 1, Text = "🎵 REN Music Loader v" .. SCRIPT_VERSION,
         TextColor3 = Color3.fromRGB(0, 220, 160),
-        Font = Enum.Font.GothamBold,
-        TextSize = 14,
+        Font = Enum.Font.GothamBold, TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
     }, frame)
 
     local statusLbl = mk("TextLabel", {
-        Size = UDim2.new(1, -16, 0, 14),
-        Position = UDim2.fromOffset(8, 30),
-        BackgroundTransparency = 1,
-        Text = "Initializing...",
+        Size = UDim2.new(1, -16, 0, 14), Position = UDim2.fromOffset(8, 30),
+        BackgroundTransparency = 1, Text = "Menunggu PlayerGui...",
         TextColor3 = Color3.fromRGB(180, 200, 220),
-        Font = Enum.Font.Gotham,
-        TextSize = 10,
+        Font = Enum.Font.Gotham, TextSize = 10,
         TextXAlignment = Enum.TextXAlignment.Left,
     }, frame)
 
     local logFrame = mk("ScrollingFrame", {
-        Size = UDim2.new(1, -16, 1, -110),
-        Position = UDim2.fromOffset(8, 48),
-        BackgroundColor3 = Color3.fromRGB(10, 14, 22),
-        BorderSizePixel = 0,
-        CanvasSize = UDim2.new(),
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        Size = UDim2.new(1, -16, 1, -110), Position = UDim2.fromOffset(8, 48),
+        BackgroundColor3 = Color3.fromRGB(10, 14, 22), BorderSizePixel = 0,
+        CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
         ScrollingDirection = Enum.ScrollingDirection.Y,
-        ScrollBarThickness = 4,
-        ScrollBarImageColor3 = Color3.fromRGB(0, 180, 130),
+        ScrollBarThickness = 4, ScrollBarImageColor3 = Color3.fromRGB(0, 180, 130),
     }, frame)
     corner(logFrame, 6)
     mk("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }, logFrame)
@@ -144,25 +122,20 @@ local function buildLoadingUI()
     }, logFrame)
 
     local copyBtn = mk("TextButton", {
-        Size = UDim2.new(0.5, -12, 0, 26),
-        Position = UDim2.new(0, 8, 1, -34),
-        BackgroundColor3 = Color3.fromRGB(40, 46, 66),
-        BorderSizePixel = 0, AutoButtonColor = false,
-        Text = "📋 Copy Logs",
+        Size = UDim2.new(0.5, -12, 0, 26), Position = UDim2.new(0, 8, 1, -34),
+        BackgroundColor3 = Color3.fromRGB(40, 46, 66), BorderSizePixel = 0,
+        AutoButtonColor = false, Text = "📋 Copy Logs",
         TextColor3 = Color3.fromRGB(220, 220, 240),
         Font = Enum.Font.GothamBold, TextSize = 11,
     }, frame)
     corner(copyBtn, 6)
 
     local closeBtn = mk("TextButton", {
-        Size = UDim2.new(0.5, -12, 0, 26),
-        Position = UDim2.new(0.5, 4, 1, -34),
-        BackgroundColor3 = Color3.fromRGB(0, 180, 130),
-        BorderSizePixel = 0, AutoButtonColor = false,
-        Text = "✕ Close",
-        TextColor3 = Color3.new(1, 1, 1),
-        Font = Enum.Font.GothamBold, TextSize = 11,
-        Visible = false,
+        Size = UDim2.new(0.5, -12, 0, 26), Position = UDim2.new(0.5, 4, 1, -34),
+        BackgroundColor3 = Color3.fromRGB(0, 180, 130), BorderSizePixel = 0,
+        AutoButtonColor = false, Text = "✕ Close",
+        TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.GothamBold,
+        TextSize = 11, Visible = false,
     }, frame)
     corner(closeBtn, 6)
 
@@ -176,16 +149,12 @@ local function buildLoadingUI()
         elseif level == "INFO" then color = Color3.fromRGB(150, 180, 220); prefix = "ℹ"
         end
         mk("TextLabel", {
-            Size = UDim2.new(1, -12, 0, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            BackgroundTransparency = 1,
-            Text = prefix .. " " .. tostring(msg),
-            TextColor3 = color,
-            Font = Enum.Font.Code, TextSize = 10,
+            Size = UDim2.new(1, -12, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1, Text = prefix .. " " .. tostring(msg),
+            TextColor3 = color, Font = Enum.Font.Code, TextSize = 10,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
-            TextWrapped = true,
-            LayoutOrder = order,
+            TextWrapped = true, LayoutOrder = order,
         }, logFrame)
         task.defer(function()
             pcall(function() logFrame.CanvasPosition = Vector2.new(0, math.huge) end)
@@ -197,15 +166,10 @@ local function buildLoadingUI()
         for _, e in ipairs(Logs) do
             table.insert(lines, string.format("[%s][%s] %s", e.ts, e.level, e.msg))
         end
-        local text = table.concat(lines, "\n")
-        local ok = copyToClipboard(text)
-        if ok then
-            copyBtn.Text = "✓ Copied!"
-            copyBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 130)
-        else
-            copyBtn.Text = "✗ Copy gagal — cek console"
-            copyBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
-        end
+        local ok = copyToClipboard(table.concat(lines, "\n"))
+        copyBtn.Text = ok and "✓ Copied!" or "✗ Gagal copy"
+        copyBtn.BackgroundColor3 = ok and Color3.fromRGB(0, 180, 130)
+            or Color3.fromRGB(180, 60, 60)
         task.delay(2, function()
             if copyBtn and copyBtn.Parent then
                 copyBtn.Text = "📋 Copy Logs"
@@ -214,31 +178,30 @@ local function buildLoadingUI()
         end)
     end)
 
-    closeBtn.MouseButton1Click:Connect(function()
-        gui:Destroy()
-    end)
+    closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
     return {
-        gui = gui,
-        frame = frame,
-        append = append,
+        gui = gui, frame = frame, append = append,
         setStatus = function(text, color)
-            if not statusLbl or not statusLbl.Parent then return end
-            statusLbl.Text = tostring(text)
-            if color then statusLbl.TextColor3 = color end
+            if statusLbl and statusLbl.Parent then
+                statusLbl.Text = tostring(text)
+                if color then statusLbl.TextColor3 = color end
+            end
         end,
         showClose = function()
             if closeBtn and closeBtn.Parent then closeBtn.Visible = true end
         end,
         markSuccess = function()
-            if not statusLbl or not statusLbl.Parent then return end
-            statusLbl.Text = "✓ Semua modul berhasil dimuat — UI sebentar lagi terbuka"
-            statusLbl.TextColor3 = Color3.fromRGB(0, 220, 160)
+            if statusLbl and statusLbl.Parent then
+                statusLbl.Text = "✓ Semua modul berhasil — UI sebentar lagi terbuka"
+                statusLbl.TextColor3 = Color3.fromRGB(0, 220, 160)
+            end
         end,
         markFailure = function()
-            if not statusLbl or not statusLbl.Parent then return end
-            statusLbl.Text = "✗ Gagal memuat — lihat log di atas / klik Copy Logs"
-            statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+            if statusLbl and statusLbl.Parent then
+                statusLbl.Text = "✗ Gagal memuat — lihat log / Copy Logs"
+                statusLbl.TextColor3 = Color3.fromRGB(255, 100, 100)
+            end
         end,
         destroy = function()
             if gui and gui.Parent then gui:Destroy() end
@@ -246,28 +209,31 @@ local function buildLoadingUI()
     }
 end
 
--- ═══════════════════════════════════════════════════════════════════
--- HTTP FETCH (multi-strategy)
--- ═══════════════════════════════════════════════════════════════════
+-- ═══ HTTP FETCH (lebih longgar) ══════════════════════════════════
 local function validResponse(r)
-    return type(r) == "string" and #r > 0
-        and not r:match("^404:")
-        and not r:match("^<")
-        and r:find("function", 1, true) ~= nil
+    if type(r) ~= "string" or #r == 0 then return false end
+    if r:match("^404:") or r:match("^<") then return false end
+    -- tidak lagi mewajibkan kata "function"
+    return true
 end
 
 local function httpFetchOnce(url)
-    -- Attempt 1: game:HttpGet with cache-bypass flag
+    -- 1. game:HttpGet
     local ok, res = pcall(function() return game:HttpGet(url, true) end)
     if ok and validResponse(res) then return res end
 
-    -- Attempt 2: cache-bust query string
+    -- 2. cache-bust
     local sep = url:find("?") and "&" or "?"
     local bustUrl = url .. sep .. "_t=" .. tostring(os.time())
     ok, res = pcall(function() return game:HttpGet(bustUrl, true) end)
     if ok and validResponse(res) then return res end
 
-    -- Attempt 3: syn.request
+    -- 3. HttpService:GetAsync
+    local HttpService = game:GetService("HttpService")
+    ok, res = pcall(function() return HttpService:GetAsync(url, true) end)
+    if ok and validResponse(res) then return res end
+
+    -- 4. syn.request
     if syn and syn.request then
         ok, res = pcall(function()
             local r = syn.request({ Url = url, Method = "GET" })
@@ -276,22 +242,16 @@ local function httpFetchOnce(url)
         if ok and validResponse(res) then return res end
     end
 
-    -- Attempt 4: http_request
-    if http_request then
-        ok, res = pcall(function()
-            local r = http_request({ Url = url, Method = "GET" })
-            return r and r.Body
-        end)
-        if ok and validResponse(res) then return res end
-    end
-
-    -- Attempt 5: request
-    if request then
-        ok, res = pcall(function()
-            local r = request({ Url = url, Method = "GET" })
-            return r and r.Body
-        end)
-        if ok and validResponse(res) then return res end
+    -- 5. http_request / request
+    for _, fnName in ipairs({"http_request", "request"}) do
+        local fn = rawget(getfenv(), fnName) or rawget(_G, fnName)
+        if type(fn) == "function" then
+            ok, res = pcall(function()
+                local r = fn({ Url = url, Method = "GET" })
+                return r and r.Body
+            end)
+            if ok and validResponse(res) then return res end
+        end
     end
 
     return nil
@@ -307,57 +267,60 @@ local function fetchModule(name)
                 if tryName ~= name then
                     log("WARN", string.format("Modul '%s' pakai alias '%s.lua'", name, tryName))
                 end
-                return source, url
+                return source
             end
         end
     end
-    return nil, nil
+    return nil
 end
 
--- ═══════════════════════════════════════════════════════════════════
--- COMPILER
--- ═══════════════════════════════════════════════════════════════════
+-- ═══ COMPILER ════════════════════════════════════════════════════
 local function compileSource(name, source)
     local chunkName = "=music_modules/" .. name
-
     if loadstring then
-        local fn, err = loadstring(source, chunkName)
-        if fn then return fn, nil end
-        if err then
-            local fn2 = loadstring(source)
-            if fn2 then return fn2, nil end
-        end
+        local fn = loadstring(source, chunkName)
+        if fn then return fn end
+        fn = loadstring(source)
+        if fn then return fn end
     end
-
     if load then
-        local fn, err = load(source, chunkName)
-        if fn then return fn, nil end
-        local fn2 = load(source)
-        if fn2 then return fn2, nil end
+        local fn = load(source, chunkName)
+        if fn then return fn end
+        fn = load(source)
+        if fn then return fn end
     end
-
     return nil, "loadstring/load tidak tersedia atau source invalid"
 end
 
--- ═══════════════════════════════════════════════════════════════════
--- MAIN LOADER
--- ═══════════════════════════════════════════════════════════════════
+-- ═══ MAIN ═════════════════════════════════════════════════════════
 local function main()
     log("INFO", "Memulai loader v" .. SCRIPT_VERSION)
 
-    local ui = buildLoadingUI()
-    if ui then
-        LogSink = ui
-        for _, e in ipairs(Logs) do
-            pcall(ui.append, e.level, e.msg)
-        end
-    else
-        log("WARN", "Loading GUI gagal dibuat — log hanya di console")
+    -- Tunggu player & PlayerGui dulu
+    local player, pg = waitForPlayer(30)
+    if not player or not pg then
+        log("ERR", "LocalPlayer/PlayerGui tidak tersedia setelah 30 detik")
+        return
     end
 
-    local function setStatus(t, c) if LogSink then pcall(LogSink.setStatus, t, c) end end
-    local function fail() if LogSink then pcall(LogSink.markFailure); pcall(LogSink.showClose) end end
-    local function ok() if LogSink then pcall(LogSink.markSuccess) end end
+    -- Buat GUI loading sekarang
+    local ui = buildLoadingUI(player, pg)
+    if ui then
+        LogSink = ui
+        for _, e in ipairs(Logs) do pcall(ui.append, e.level, e.msg) end
+    else
+        log("WARN", "GUI loading gagal dibuat — log hanya di console")
+    end
+
+    local function fail()
+        if LogSink then
+            pcall(LogSink.markFailure)
+            pcall(LogSink.showClose)
+        end
+    end
+    local function setStatus(t, c)
+        if LogSink then pcall(LogSink.setStatus, t, c) end
+    end
 
     local REN = { version = SCRIPT_VERSION }
     local env = (getgenv and getgenv()) or _G
@@ -402,28 +365,25 @@ local function main()
     end
 
     log("OK", string.format("Semua %d modul berhasil dimuat", total))
-    ok()
+    if LogSink then pcall(LogSink.markSuccess) end
 
+    -- Bootstrap sudah dipanggil sebagai modul terakhir,
+    -- jadi UI musik seharusnya sudah muncul.
     local stats = "?"
     if REN.State and REN.State.playlist then
         stats = string.format(
             "Playlist: %d | Mode: %s | PlaceId: %d",
-            #REN.State.playlist,
-            tostring(REN.State.musicState),
-            game.PlaceId
+            #REN.State.playlist, tostring(REN.State.musicState), game.PlaceId
         )
     end
     log("OK", "READY — " .. stats)
 
-    -- Auto-hide setelah 1 detik
     task.delay(1, function()
         if LogSink then pcall(LogSink.destroy) end
     end)
 end
 
--- ═══════════════════════════════════════════════════════════════════
--- RUN
--- ═══════════════════════════════════════════════════════════════════
+-- ═══ RUN ══════════════════════════════════════════════════════════
 local ok, err = pcall(main)
 if not ok then
     log("ERR", "FATAL: " .. tostring(err))
