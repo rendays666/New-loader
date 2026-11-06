@@ -1,8 +1,9 @@
 --[[
-  RENRENHUB — MUSIC STANDALONE v3.5
+  RENRENHUB — MUSIC STANDALONE v3.6
   - Like = Favorite
   - Score sorting: likes*10 - dislikes*5 (descending)
   - PlaceModeConfig: 8735521924 = music only
+  - Retry-once on load failure + LoadTimeout 12s
 ]]
 
 local HttpService     = game:GetService("HttpService")
@@ -22,19 +23,16 @@ local CONFIG = {
     DefaultSize     = Vector2.new(210, 280),
     MinPanelSize    = Vector2.new(180, 230),
     MaxPanelSize    = Vector2.new(450, 650),
-    LoadTimeout     = 4,
+    LoadTimeout     = 12,
     MaxFails        = 5,
 
-    -- Sound mode: 1 = music only, 2 = music + game sound, 3 = game sound only
     DefaultMode = 2,
     PlaceModeConfig = {
-        [8735521924] = 1,   -- music only
-        -- [PlaceId] = Mode
+        [8735521924] = 1,
     },
 
-    -- Score weighting for sorting
     LikeWeight    = 10,
-    DislikeWeight = 5,  -- negative impact per dislike
+    DislikeWeight = 5,
 }
 
 local FALLBACK_PLAYLIST = {
@@ -86,7 +84,6 @@ local function shuffleList(list)
     end
 end
 
--- Score = likes*LikeWeight - dislikes*DislikeWeight
 local function entryScore(e)
     return countKeys(e.likes) * CONFIG.LikeWeight - countKeys(e.dislikes) * CONFIG.DislikeWeight
 end
@@ -95,7 +92,6 @@ local function sortByScore(list)
     table.sort(list, function(a, b)
         local sa, sb = entryScore(a), entryScore(b)
         if sa ~= sb then return sa > sb end
-        -- Tie-break: lebih banyak likes dulu, lalu nama
         local la, lb = countKeys(a.likes), countKeys(b.likes)
         if la ~= lb then return la > lb end
         return a.name < b.name
@@ -189,7 +185,6 @@ if not pg then return end
 local myUserId = tostring(player.UserId)
 local preloadCache = {}
 
--- dedup cache
 local existingIds = {}
 local function registerId(assetId)
     local num = extractAssetId(assetId)
@@ -427,13 +422,17 @@ local function getModeColor()
     else return Color3.fromRGB(90, 60, 60) end
 end
 
--- ═══ PLAY + AUTO-SKIP ════════════════════════════════════════════════
+-- ═══ PLAY + AUTO-SKIP (with retry-once) ══════════════════════════════
 local function playSongAt(idx, isAutoSkip)
     if not musicSound or not musicSound.Parent then return end
     if not isAutoSkip then consecutiveFails = 0 end
     currentIndex = ((idx - 1) % #Playlist) + 1
     local entry = Playlist[currentIndex]
     if not entry then return end
+
+    -- Reset retry flag when manually playing (not from auto-skip / retry)
+    if not isAutoSkip then entry._retried = nil end
+
     musicPaused = false
     pcall(function() musicSound:Stop() end)
     musicSound.SoundId = entry.id
@@ -460,6 +459,14 @@ local function playSongAt(idx, isAutoSkip)
                 pcall(function() musicSound:Play() end)
             end
         else
+            -- Retry once before skipping
+            if not entry._retried then
+                entry._retried = true
+                task.wait(0.5)
+                if currentPlayToken == myToken then playSongAt(currentIndex, true) end
+                return
+            end
+            entry._retried = nil
             consecutiveFails = consecutiveFails + 1
             if consecutiveFails >= CONFIG.MaxFails then consecutiveFails = 0; return end
             task.wait(0.2)
@@ -963,4 +970,4 @@ end
 initMusic()
 createMusicUI()
 
-print("[Music] READY v3.5 | Playlist:", #Playlist, "| Mode:", musicState, "| PlaceId:", game.PlaceId)
+print("[Music] READY v3.6 | Playlist:", #Playlist, "| Mode:", musicState, "| PlaceId:", game.PlaceId)
