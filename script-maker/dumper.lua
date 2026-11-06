@@ -1,93 +1,76 @@
---!nocheck
--- SCRIPT DUMPER v12.1 — Arceus X Safe
-print("[Dumper v12.1] ▶ boot")
+--[[
+    SCRIPT DUMPER v13 — Runtime Capture + AI-Readable Config Snapshot
+    Scan (safe) : baca .Source script dari root ON
+    Runtime     : UI (watch PlayerGui) + HK (hook FireServer) + UC (unreliable fallback)
+    Save        : SMART/FULL selalu include config snapshot + runtime capture
 
--- ==========================================
--- SAFE HELPERS
--- ==========================================
-local function safeWait(t)
-    t = t or 0
-    if task and task.wait then task.wait(t) else wait(t) end
-end
+    FIX v13:
+    - UI watcher tidak lagi mencatat tombol milik Dumper sendiri (spam log)
+    - Nomor baris di API SURFACE / CLIENT HANDLERS sekarang akurat (baris kosong dihitung)
+    - rebuildList tidak lagi menghasilkan baris ganda saat filter diketik cepat
+    - Info chip bisa dibuka dengan tahan lama (mobile, tanpa klik kanan)
+    - GUI diparent ke gethui() jika ada (fallback PlayerGui)
+    - Guard typeof(self) di hook __namecall, guard oldIdx bukan function di UC
+    - Filter core script ikut cek script itu sendiri (PlayerModule dkk)
+    - Tombol SMART/FULL memberi peringatan kalau belum SCAN
+    - tick() diganti os.clock()
+]]
 
-local function safeSpawn(fn)
-    if task and task.spawn then task.spawn(fn)
-    elseif spawn then spawn(fn)
-    else coroutine.wrap(fn)() end
-end
-
-local function tryStroke(parent, color, thickness)
-    local ok, s = pcall(Instance.new, "UIStroke")
-    if not ok or not s then return nil end
-    s.Color = color or Color3.fromRGB(80, 140, 255)
-    s.Thickness = thickness or 1
-    s.Parent = parent
-    return s
-end
-
--- ==========================================
--- WAIT LOCALPLAYER
--- ==========================================
-local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-
+local Players     = game:GetService("Players")
+local UIS         = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then
-    print("[Dumper] ⏳ waiting LocalPlayer...")
-    local t0 = tick()
-    while not Players.LocalPlayer and tick() - t0 < 15 do safeWait(0.1) end
-    LocalPlayer = Players.LocalPlayer
-end
-if not LocalPlayer then
-    warn("[Dumper] ✗ LocalPlayer nil after 15s — abort")
-    return
-end
-print("[Dumper] ✓ LP:", LocalPlayer.Name)
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
-local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
-if not PlayerGui then
-    PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 15)
+local function getGuiParent()
+    if type(gethui) == "function" then
+        local ok, h = pcall(gethui)
+        if ok and typeof(h) == "Instance" then return h end
+    end
+    return PlayerGui
 end
-if not PlayerGui then
-    warn("[Dumper] ✗ PlayerGui nil — abort")
-    return
-end
-print("[Dumper] ✓ PG ready")
+local GUI_PARENT = getGuiParent()
 
-local old = PlayerGui:FindFirstChild("ScriptDumperGui")
-if old then old:Destroy() end
+for _, p in ipairs({PlayerGui, GUI_PARENT}) do
+    local old = p:FindFirstChild("ScriptDumperGui")
+    if old then old:Destroy() end
+end
 
 -- ==========================================
 -- CONSTANTS
 -- ==========================================
 local SCAN = {
-    MAX_SCRIPT_SIZE  = 200 * 1024,
-    MAX_TOTAL_MEM    = 10 * 1024 * 1024,
-    ROOT_TIMEOUT     = 45,
-    MAX_SCRIPTS_ROOT = 800,
-    BIG_LOG_THRESH   = 50 * 1024,
-    RENDER_CAP       = 400,
+    MAX_SCRIPT_SIZE   = 200 * 1024,
+    MAX_TOTAL_MEM     = 10 * 1024 * 1024,
+    ROOT_TIMEOUT      = 45,
+    MAX_SCRIPTS_ROOT  = 800,
+    BIG_LOG_THRESH    = 50 * 1024,
+    RENDER_CAP        = 400,
 }
-local scanOptions = {decompile=false, bytecode=false, readCore=false}
+
+local scanOptions = {
+    decompile = false,
+    bytecode  = false,
+    readCore  = false,
+}
+
 local ROBLOX_CORE_NAMES = {
-    PlayerModule=true, CameraModule=true, ControlModule=true,
-    ChatScript=true, Chat=true, PlayerScriptsChat=true,
-    Animate=true, Health=true, Sound=true,
-    ClickToMove=true, ClassicCamera=true,
+    PlayerModule = true, CameraModule = true, ControlModule = true,
+    ChatScript = true, Chat = true, PlayerScriptsChat = true,
+    Animate = true, Health = true, Sound = true,
+    ClickToMove = true, ClassicCamera = true,
 }
+
 local scanAbort = false
 
 -- ==========================================
--- GUI ROOT
+-- GUI
 -- ==========================================
-print("[Dumper] building GUI...")
-
 local gui = Instance.new("ScreenGui")
 gui.Name = "ScriptDumperGui"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 2147483647
-gui.Parent = PlayerGui
+gui.Parent = GUI_PARENT
 
 local FULL_SIZE = UDim2.new(0, 240, 0, 350)
 local MINI_SIZE = UDim2.new(0, 150, 0, 20)
@@ -99,17 +82,21 @@ main.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
 main.BorderSizePixel = 0
 main.Parent = gui
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8)
-tryStroke(main, Color3.fromRGB(80, 140, 255), 1)
+local s1 = Instance.new("UIStroke", main)
+s1.Color = Color3.fromRGB(80, 140, 255)
+s1.Thickness = 1
 
 local header = Instance.new("TextLabel")
 header.Size = UDim2.new(1, -28, 0, 20)
 header.BackgroundTransparency = 1
-header.Text = "📜 Dumper v12.1"
+header.Text = "📜 Dumper v13"
 header.Font = Enum.Font.GothamBold
 header.TextSize = 11
 header.TextColor3 = Color3.new(1,1,1)
 header.TextXAlignment = Enum.TextXAlignment.Left
 header.Parent = main
+local hPad = Instance.new("UIPadding", header)
+hPad.PaddingLeft = UDim.new(0, 6)
 
 local minBtn = Instance.new("TextButton")
 minBtn.Size = UDim2.new(0, 20, 0, 18)
@@ -122,7 +109,6 @@ minBtn.TextColor3 = Color3.new(1,1,1)
 minBtn.Parent = main
 Instance.new("UICorner", minBtn).CornerRadius = UDim.new(0, 4)
 
--- DRAG
 local dragging, dragStart, startPos
 header.InputBegan:Connect(function(input)
     if input.UserInputType ~= Enum.UserInputType.MouseButton1
@@ -212,14 +198,14 @@ minBtn.MouseButton1Click:Connect(function()
     else
         main.Size = FULL_SIZE
         tabBar.Visible = true
-        header.Text = "📜 Dumper v12.1"
+        header.Text = "📜 Dumper v13"
         minBtn.Text = "–"
         setTab(currentTab)
     end
 end)
 
 -- ==========================================
--- LOG
+-- LOG SYSTEM (must be first, used everywhere)
 -- ==========================================
 local logScroll = Instance.new("ScrollingFrame")
 logScroll.Size = UDim2.new(1, -8, 1, -32)
@@ -230,6 +216,7 @@ logScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 logScroll.ScrollBarThickness = 3
 logScroll.Parent = logPanel
 Instance.new("UICorner", logScroll).CornerRadius = UDim.new(0, 5)
+
 local logLayout = Instance.new("UIListLayout", logScroll)
 logLayout.Padding = UDim.new(0, 1)
 logLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -289,37 +276,33 @@ end
 -- ==========================================
 -- RUNTIME STATE
 -- ==========================================
-local uiActive, hkActive, ucActive = false, false, false
+local uiActive = false
+local hkActive = false
+local ucActive = false
 local uiConns  = {}
 local namecallInstalled = false
 local ucPatchedClasses  = {}
-local runtimeCapture = { fireServer = {}, ui = {}, log = {} }
-local lastFS = { remote = nil, method = nil, time = 0 }
-local hkFunc = nil
 
-local function formatArg(v)
-    local ok, tp = pcall(typeof, v)
-    if not ok then tp = type(v) end
-    if tp == "Vector3" then
-        return ("V3(%0.1f,%0.1f,%0.1f)"):format(v.X, v.Y, v.Z)
-    elseif tp == "CFrame" then
-        return ("CF(%0.1f,%0.1f,%0.1f)"):format(v.Position.X, v.Position.Y, v.Position.Z)
-    elseif tp == "Instance" then
-        return "Inst:" .. tostring(v.Name):sub(1,20)
-    elseif tp == "string" then
-        local s = tostring(v):sub(1, 30)
-        s = s:gsub("\\", "\\\\"):gsub("\n", "\\n"):gsub("\r", "")
-        return '"' .. s .. '"'
-    elseif tp == "number" or tp == "boolean" then
-        return tostring(v)
-    else
-        return tp .. ":" .. tostring(v):sub(1, 20)
+local runtimeCapture = {
+    fireServer = {},
+    ui         = {},
+    log        = {},
+}
+
+local lastFS = {remote = nil, method = nil, time = 0}
+
+local function safeClosure(fn)
+    if type(newcclosure) == "function" then
+        local ok, r = pcall(newcclosure, fn)
+        if ok then return r end
     end
+    return fn
 end
 
--- UI WATCH
+-- --- UI WATCH ---
 local function logButton(d)
     if not d or not d.Parent then return end
+    if d:IsDescendantOf(gui) then return end -- FIX: jangan catat GUI Dumper sendiri
     local entry = {
         time = os.clock(),
         path = d:GetFullName(),
@@ -334,8 +317,8 @@ local function logButton(d)
     if #runtimeCapture.ui > 300 then table.remove(runtimeCapture.ui, 1) end
     scanLog(("🖱 [UI] %s [%s] pos=%s size=%s%s%s")
         :format(entry.path, entry.class, entry.pos, entry.size,
-            entry.text ~= "" and (" text=" .. entry.text:sub(1,24)) or "",
-            entry.image ~= "" and (" img=" .. entry.image:sub(1,40)) or ""),
+            entry.text ~= "" and (" text=" .. entry.text:sub(1, 24)) or "",
+            entry.image ~= "" and (" img=" .. entry.image:sub(1, 40)) or ""),
         Color3.fromRGB(100, 255, 200))
 end
 
@@ -353,8 +336,7 @@ local function setUIWatch(state)
             end
             table.insert(uiConns, pg.DescendantAdded:Connect(function(d)
                 if d:IsA("ImageButton") or d:IsA("TextButton") then
-                    safeWait(0.15)
-                    logButton(d)
+                    task.delay(0.15, function() logButton(d) end)
                 end
             end))
             scanLog("[UI] ✓ watching PlayerGui", Color3.fromRGB(100,255,200))
@@ -369,8 +351,9 @@ local function setUIWatch(state)
     end
 end
 
--- FIRESERVER LOG
+-- --- FIRESERVER LOG ---
 local function logFS(remote, method, args)
+    if typeof(remote) ~= "Instance" then return end
     local now = os.clock()
     if lastFS.remote == remote and lastFS.method == method
         and (now - lastFS.time) < 0.01 then return end
@@ -378,7 +361,21 @@ local function logFS(remote, method, args)
 
     local parts = {}
     for i = 1, math.min(args.n, 8) do
-        parts[i] = formatArg(args[i])
+        local v = args[i]
+        local tp = typeof(v)
+        if tp == "Vector3" then
+            parts[i] = ("V3(%0.1f,%0.1f,%0.1f)"):format(v.X, v.Y, v.Z)
+        elseif tp == "CFrame" then
+            parts[i] = ("CF(%0.1f,%0.1f,%0.1f)"):format(v.Position.X, v.Position.Y, v.Position.Z)
+        elseif tp == "Instance" then
+            parts[i] = "Inst:" .. tostring(v.Name):sub(1,20)
+        elseif tp == "string" then
+            parts[i] = string.format("%q", tostring(v):sub(1, 30))
+        elseif tp == "number" or tp == "boolean" then
+            parts[i] = tostring(v)
+        else
+            parts[i] = tp:sub(1, 3) .. ":" .. tostring(v):sub(1, 20)
+        end
     end
 
     table.insert(runtimeCapture.fireServer, {
@@ -396,61 +393,60 @@ local function logFS(remote, method, args)
         Color3.fromRGB(255, 200, 100))
 end
 
--- HK INSTALL (only on click)
+-- --- HK (hook __namecall) ---
 local function installHK()
     if namecallInstalled then return true end
-    if type(hookmetamethod) ~= "function" then
-        return false, "hookmetamethod not available"
+    if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
+        return false
     end
-    if type(getnamecallmethod) ~= "function" then
-        return false, "getnamecallmethod not available"
-    end
-    hkFunc = function(self, ...)
-        if hkActive then
-            local m = getnamecallmethod()
-            if m == "FireServer" or m == "InvokeServer" then
-                pcall(function() logFS(self, m, table.pack(...)) end)
+    local ok = pcall(function()
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", safeClosure(function(self, ...)
+            if hkActive then
+                local method = getnamecallmethod()
+                if (method == "FireServer" or method == "InvokeServer")
+                    and typeof(self) == "Instance" then
+                    local args = table.pack(...)
+                    pcall(function() logFS(self, method, args) end)
+                    -- getnamecallmethod bisa ter-reset; set ulang tidak perlu karena
+                    -- kita lanjut lewat oldNamecall dengan self & args yang sama.
+                end
             end
-        end
-        return hkFunc.old(self, ...)
-    end
-    local ok, err = pcall(function()
-        local old = hookmetamethod(game, "__namecall", hkFunc)
-        hkFunc.old = old
+            return oldNamecall(self, ...)
+        end))
     end)
     if ok then namecallInstalled = true return true end
-    return false, tostring(err)
+    return false
 end
 
--- UC PATCH (only on click)
+-- --- UC (metatable per-class patch) ---
 local function patchUC()
-    if type(getrawmetatable) ~= "function" then
-        return false, "getrawmetatable not available"
-    end
-    if type(setreadonly) ~= "function" then
-        return false, "setreadonly not available"
+    if type(getrawmetatable) ~= "function" or type(setreadonly) ~= "function" then
+        return false
     end
     local patched = 0
     for _, d in ipairs(game:GetDescendants()) do
         local cls = d.ClassName
         if (cls == "RemoteEvent" or cls == "RemoteFunction" or cls == "UnreliableRemoteEvent")
             and not ucPatchedClasses[cls] then
-            local ok = pcall(function()
+            pcall(function()
                 local mt = getrawmetatable(d)
-                if mt and mt.__index and not mt.__dumperUC then
+                if mt and type(mt.__index) == "function" and not mt.__dumperUCPatched then
                     local oldIdx = mt.__index
                     setreadonly(mt, false)
-                    mt.__dumperUC = true
-                    mt.__index = function(self, key)
+                    mt.__dumperUCPatched = true
+                    mt.__index = safeClosure(function(self, key)
                         if ucActive and not hkActive
                             and (key == "FireServer" or key == "InvokeServer") then
-                            return function(_, ...)
-                                pcall(function() logFS(self, key, table.pack(...)) end)
-                                return oldIdx(self, key)(self, ...)
-                            end
+                            local orig = oldIdx(self, key)
+                            return safeClosure(function(_, ...)
+                                local args = table.pack(...)
+                                pcall(function() logFS(self, key, args) end)
+                                return orig(self, ...)
+                            end)
                         end
                         return oldIdx(self, key)
-                    end
+                    end)
                     setreadonly(mt, true)
                     ucPatchedClasses[cls] = true
                     patched = patched + 1
@@ -458,7 +454,7 @@ local function patchUC()
             end)
         end
     end
-    return patched > 0, ("patched %d class"):format(patched)
+    return patched > 0
 end
 
 -- ==========================================
@@ -474,7 +470,9 @@ tooltip.Visible = false
 tooltip.ZIndex = 50
 tooltip.Parent = main
 Instance.new("UICorner", tooltip).CornerRadius = UDim.new(0, 6)
-tryStroke(tooltip, Color3.fromRGB(100, 150, 255), 1)
+local tStroke = Instance.new("UIStroke", tooltip)
+tStroke.Color = Color3.fromRGB(100, 150, 255)
+tStroke.Thickness = 1
 
 local tTitle = Instance.new("TextLabel")
 tTitle.Size = UDim2.new(1, -8, 0, 14)
@@ -485,6 +483,7 @@ tTitle.TextSize = 10
 tTitle.TextColor3 = Color3.fromRGB(150, 200, 255)
 tTitle.TextXAlignment = Enum.TextXAlignment.Left
 tTitle.TextTruncate = Enum.TextTruncate.AtEnd
+tTitle.ZIndex = 51
 tTitle.Parent = tooltip
 
 local tDesc = Instance.new("TextLabel")
@@ -497,6 +496,7 @@ tDesc.TextColor3 = Color3.fromRGB(220, 220, 220)
 tDesc.TextXAlignment = Enum.TextXAlignment.Left
 tDesc.TextYAlignment = Enum.TextYAlignment.Top
 tDesc.TextWrapped = true
+tDesc.ZIndex = 51
 tDesc.Parent = tooltip
 
 local tUse = Instance.new("TextLabel")
@@ -509,6 +509,7 @@ tUse.TextColor3 = Color3.fromRGB(150, 255, 180)
 tUse.TextXAlignment = Enum.TextXAlignment.Left
 tUse.TextYAlignment = Enum.TextYAlignment.Top
 tUse.TextWrapped = true
+tUse.ZIndex = 51
 tUse.Parent = tooltip
 
 local tClose = Instance.new("TextButton")
@@ -520,7 +521,7 @@ tClose.Font = Enum.Font.GothamBold
 tClose.TextSize = 9
 tClose.TextColor3 = Color3.new(1,1,1)
 tClose.BorderSizePixel = 0
-tClose.ZIndex = 51
+tClose.ZIndex = 52
 tClose.Parent = tooltip
 Instance.new("UICorner", tClose).CornerRadius = UDim.new(1, 0)
 
@@ -536,68 +537,103 @@ local function showTooltip(info)
     tooltip.Visible = true
     tooltipToken = tooltipToken + 1
     local t = tooltipToken
-    safeSpawn(function()
-        safeWait(8)
+    task.delay(8, function()
         if tooltipToken == t then tooltip.Visible = false end
     end)
 end
 tClose.MouseButton1Click:Connect(hideTooltip)
 
--- ==========================================
--- INFO DATA
--- ==========================================
+-- Info via klik kanan (PC) ATAU tahan 0.5 detik (mobile)
+local function attachInfo(btn, getInfo)
+    btn.MouseButton2Click:Connect(function()
+        local inf = getInfo()
+        if inf then showTooltip(inf) end
+    end)
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.Touch then return end
+        local held = true
+        local c
+        c = input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                held = false
+                c:Disconnect()
+            end
+        end)
+        task.delay(0.5, function()
+            if held then
+                local inf = getInfo()
+                if inf then showTooltip(inf) end
+            end
+        end)
+    end)
+end
+
 local BTN_INFO = {
     SCAN  = {name="SCAN", desc="Scan .Source semua script dari root aktif.",
              use="Wajib. Tombol lain butuh hasil scan."},
-    SMART = {name="SMART", desc="Build mechanics + save .txt (config snapshot + runtime).",
-             use="Arsip gameplay + AI analyst."},
-    MECH  = {name="MECH", desc="Build mechanics → clipboard.",
-             use="Paste ke AI buat analisis."},
+    SMART = {name="SMART", desc="Build mechanics pack + save .txt (include config snapshot + runtime).",
+             use="Arsip gameplay + request AI lain analisis."},
+    MECH  = {name="MECH", desc="Build mechanics pack → clipboard.",
+             use="Paste ke AI buat analisis gameplay cepat."},
     INDEX = {name="INDEX", desc="Daftar script + status.",
-             use="Cek readable vs obf."},
-    FULL  = {name="FULL", desc="Save semua: config+runtime+index+mechanics+remotes+tree.",
-             use="Backup lengkap."},
+             use="Cek readable vs obf vs trunc."},
+    FULL  = {name="FULL", desc="Save semua: config+index+mechanics+remotes+tree+runtime.",
+             use="Backup lengkap ke repo pribadi."},
     CLR   = {name="CLR", desc="Clear list / abort scan.",
-             use="Reset / stop scan lambat."},
+             use="Reset sebelum re-scan atau stop scan lambat."},
     REM   = {name="REM", desc="List RemoteEvent/RemoteFunction.",
-             use="Target FireServer tanpa validasi."},
+             use="Lihat daftar remote yang dipakai game."},
     CFG   = {name="CFG", desc="Dump Value + Attributes.",
-             use="Angka tuning."},
-    PATH  = {name="PATH", desc="Daftar full path script.",
-             use="Copy path ke executor."},
-    RUN   = {name="RUN", desc="Hook LogService + OnClientEvent.",
-             use="Lihat error server→client."},
+             use="Angka tuning (harga, cooldown, ratio)."},
+    PATH  = {name="PATH", desc="Daftar full path semua script.",
+             use="Copy path untuk referensi."},
+    RUN   = {name="RUN", desc="Hook LogService + OnClientEvent (passive log).",
+             use="Lihat error/warning + argumen server→client."},
     TREE  = {name="TREE", desc="Hierarchy service 2-3 level.",
-             use="Mapping struktur."},
+             use="Mapping struktur game."},
 }
+
 local ROOT_INFO = {
     RS = {name="ReplicatedStorage", desc="Remote + ModuleScript shared.",
-          use="Komunikasi client-server — target utama."},
-    RF = {name="ReplicatedFirst", desc="Script loading awal.", use="Jalan sebelum game ready."},
-    SP = {name="StarterPlayer", desc="Template LocalScript player.", use="Movement, camera, ability."},
-    SG = {name="StarterGui", desc="Template UI.", use="Struktur UI."},
-    WS = {name="Workspace", desc="Map, model, NPC, Tool.", use="Paling banyak — lambat."},
-    PL = {name="Players", desc="Player object + PlayerScripts.", use="Script runtime (safe mode)."},
-    LT = {name="Lighting", desc="Efek visual.", use="Jarang ada script."},
+          use="Komunikasi client-server."},
+    RF = {name="ReplicatedFirst", desc="Script loading awal.",
+          use="Jalan sebelum game ready."},
+    SP = {name="StarterPlayer", desc="Template LocalScript player.",
+          use="Gerakan, camera, ability, input player."},
+    SG = {name="StarterGui", desc="Template UI.",
+          use="Struktur UI sebelum di-clone ke PlayerGui."},
+    WS = {name="Workspace", desc="Map, model, NPC, Tool.",
+          use="Paling banyak instance — lambat."},
+    PL = {name="Players", desc="Player object + PlayerScripts runtime.",
+          use="Script yang beneran jalan."},
+    LT = {name="Lighting", desc="Efek visual, sky.", use="Jarang ada script."},
     SS = {name="SoundService", desc="Sound group.", use="Jarang ada script."},
-    CH = {name="Chat", desc="TextChatService.", use="Audit command chat."},
+    CH = {name="Chat", desc="TextChatService.", use="Audit command handler chat."},
     TM = {name="Teams", desc="Team container.", use="Cek team logic."},
 }
+
 local TOGGLE_INFO = {
-    DC = {name="DC — Decompile", desc="Coba decompile() kalau .Source kosong. LAMBAT.",
-          use="Hanya untuk script spesifik kosong."},
-    BC = {name="BC — Bytecode", desc="Bytecode mentah. SANGAT besar.",
-          use="Hanya untuk arsip."},
-    RC = {name="RC — Read Core", desc="Ikut baca PlayerModule/CameraModule.",
-          use="Hanya kalau butuh movement Roblox."},
-    UI = {name="UI — Watch PlayerGui", desc="Rekam ImageButton/TextButton runtime.",
-          use="AutoFire: cari tombol fire."},
-    HK = {name="HK — Hook FireServer", desc="Log argumen FireServer via hookmetamethod.",
-          use="SilentAim: tahu origin/direction/weapon."},
-    UC = {name="UC — Unreliable Mode", desc="Patch metatable per-class.",
-          use="Fallback kalau HK gagal catch Unreliable."},
-    RT = {name="RT — Clear Runtime", desc="Hapus capture UI + FS + log.",
-          use="Reset capture."},
+    DC = {name="DC — Decompile Fallback",
+          desc="Coba decompile() kalau .Source kosong. LAMBAT + crash-prone.",
+          use="Aktifkan hanya untuk script spesifik yang source kosong."},
+    BC = {name="BC — Bytecode Dump",
+          desc="Bytecode mentah kalau decompile gagal. SANGAT besar.",
+          use="Hanya untuk arsip — bytecode tidak terbaca."},
+    RC = {name="RC — Read Roblox Core",
+          desc="Ikut baca PlayerModule/CameraModule/ChatScript (≈300KB).",
+          use="Hanya kalau butuh movement/camera code Roblox."},
+    UI = {name="UI — Watch PlayerGui",
+          desc="Rekam ImageButton/TextButton yang muncul di PlayerGui.",
+          use="Cari nama tombol yang di-generate runtime."},
+    HK = {name="HK — Hook FireServer",
+          desc="Log argumen FireServer/InvokeServer via hookmetamethod (catch Unreliable juga).",
+          use="Lihat isi argumen remote (origin, direction, weapon)."},
+    UC = {name="UC — Unreliable Mode",
+          desc="Patch metatable per-class (fallback kalau HK gagal catch).",
+          use="Kalau RemoteEvent Unreliable lolos dari HK."},
+    RT = {name="RT — Clear Runtime",
+          desc="Hapus semua capture (UI + FireServer + Log).",
+          use="Reset sebelum capture baru."},
 }
 
 -- ==========================================
@@ -654,7 +690,7 @@ addInfoBadge(remBtn,"REM")   addInfoBadge(cfgBtn,"CFG")     addInfoBadge(pathBtn
 addInfoBadge(runBtn,"RUN")   addInfoBadge(treeBtn,"TREE")
 
 -- ==========================================
--- CHIP BAR
+-- CHIP BAR (roots + options + runtime)
 -- ==========================================
 local SKIP_ROOTS = {
     {name="ReplicatedStorage", abbr="RS"},
@@ -705,15 +741,15 @@ for i, r in ipairs(SKIP_ROOTS) do
         chip.BackgroundColor3 = rootEnabled[r.name]
             and Color3.fromRGB(0, 140, 80) or Color3.fromRGB(80, 40, 40)
     end)
-    chip.MouseButton2Click:Connect(function()
+    attachInfo(chip, function()
         local inf = ROOT_INFO[r.abbr]
-        if inf then showTooltip({
-            name = r.abbr .. " = " .. inf.name, desc = inf.desc, use = inf.use,
-        }) end
+        if not inf then return nil end
+        return { name = r.abbr .. " = " .. inf.name, desc = inf.desc, use = inf.use }
     end)
 end
 
-local function mkToggleChip(abbr, isOn, onToggle, layoutOrder, infoKey)
+-- Toggle chip builder
+local function mkToggleChip(abbr, isOn, onToggle, layoutOrder)
     local chip = Instance.new("TextButton")
     chip.Size = UDim2.new(0, 22, 0, 12)
     chip.BackgroundColor3 = isOn()
@@ -726,16 +762,19 @@ local function mkToggleChip(abbr, isOn, onToggle, layoutOrder, infoKey)
     chip.LayoutOrder = layoutOrder
     chip.Parent = skipBar
     Instance.new("UICorner", chip).CornerRadius = UDim.new(0, 3)
-    chip.MouseButton1Click:Connect(function()
-        onToggle()
+    local function refresh()
         chip.BackgroundColor3 = isOn()
             and Color3.fromRGB(0, 140, 80) or Color3.fromRGB(80, 40, 40)
+    end
+    chip.MouseButton1Click:Connect(function()
+        onToggle()
+        refresh()
     end)
-    chip.MouseButton2Click:Connect(function()
-        if TOGGLE_INFO[abbr] then showTooltip(TOGGLE_INFO[abbr]) end
-    end)
+    attachInfo(chip, function() return TOGGLE_INFO[abbr] end)
+    return chip
 end
 
+-- Options DC/BC/RC
 mkToggleChip("DC", function() return scanOptions.decompile end,
     function() scanOptions.decompile = not scanOptions.decompile end, 100)
 mkToggleChip("BC", function() return scanOptions.bytecode end,
@@ -743,30 +782,33 @@ mkToggleChip("BC", function() return scanOptions.bytecode end,
 mkToggleChip("RC", function() return scanOptions.readCore end,
     function() scanOptions.readCore = not scanOptions.readCore end, 102)
 
+-- Runtime UI / HK / UC / RT
 mkToggleChip("UI", function() return uiActive end,
     function() setUIWatch(not uiActive) end, 200)
+
 mkToggleChip("HK", function() return hkActive end, function()
     if not hkActive then
-        local ok, err = installHK()
+        local ok = installHK()
         if not ok then
-            scanLog("[HK] ✗ " .. tostring(err), Color3.fromRGB(255,100,100))
+            scanLog("[HK] ✗ hookmetamethod tidak tersedia", Color3.fromRGB(255,100,100))
             return
         end
     end
     hkActive = not hkActive
-    scanLog("[HK] " .. (hkActive and "✓ aktif" or "✗ mati"),
-        Color3.fromRGB(200,200,255))
+    scanLog("[HK] " .. (hkActive and "✓ aktif" or "✗ mati"), Color3.fromRGB(200,200,255))
 end, 201)
+
 mkToggleChip("UC", function() return ucActive end, function()
     ucActive = not ucActive
     if ucActive then
-        local ok, msg = patchUC()
-        scanLog("[UC] " .. (ok and "✓ " or "⚠ ") .. tostring(msg),
+        local ok = patchUC()
+        scanLog("[UC] " .. (ok and "✓ patched" or "⚠ patch gagal / sudah ter-patch"),
             ok and Color3.fromRGB(200,200,255) or Color3.fromRGB(255,200,100))
     else
         scanLog("[UC] ✗ mati", Color3.fromRGB(200,150,100))
     end
 end, 202)
+
 mkToggleChip("RT", function() return false end, function()
     runtimeCapture.fireServer = {}
     runtimeCapture.ui = {}
@@ -785,6 +827,7 @@ filterBox.Position = UDim2.new(0.02, 0, 0, 100)
 filterBox.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 filterBox.BorderSizePixel = 0
 filterBox.PlaceholderText = "Filter path…"
+filterBox.Text = ""
 filterBox.ClearTextOnFocus = false
 filterBox.Font = Enum.Font.Gotham
 filterBox.TextSize = 9
@@ -802,6 +845,7 @@ scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 scroll.ScrollBarThickness = 4
 scroll.Parent = scanPanel
 Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 5)
+
 local layout = Instance.new("UIListLayout", scroll)
 layout.Padding = UDim.new(0, 1)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -818,14 +862,15 @@ status.TextXAlignment = Enum.TextXAlignment.Left
 status.Parent = scanPanel
 
 -- ==========================================
--- STATE
+-- LOGIC STATE
 -- ==========================================
-local allScripts = {}
-local bigScripts = {}
-local scanRunning = false
-local filterToken = 0
+local allScripts    = {}
+local bigScripts    = {}
+local scanRunning   = false
+local filterToken   = 0
+local renderToken   = 0
 local runtimeActive = false
-local runtimeConns = {}
+local runtimeConns  = {}
 
 local MECHANIC_KW = {
     "damage","health","hit","attack","weapon","kill","death","respawn",
@@ -842,17 +887,20 @@ local MECHANIC_KW = {
     "save","load","data","profile","session",
     "ui","gui","menu","button","hud","notification",
 }
+
 local TYPE_COLOR = {
     LocalScript  = Color3.fromRGB(120, 200, 255),
     ModuleScript = Color3.fromRGB(255, 200, 100),
     Script       = Color3.fromRGB(255, 130, 130),
 }
+
 local STATUS_COLOR = {
     readable  = Color3.fromRGB(140, 220, 140),
     empty     = Color3.fromRGB(160, 160, 160),
     obf       = Color3.fromRGB(255, 180, 80),
     bcode     = Color3.fromRGB(200, 130, 255),
     truncated = Color3.fromRGB(255, 220, 90),
+    skipped   = Color3.fromRGB(120, 120, 120),
 }
 
 -- ==========================================
@@ -875,8 +923,10 @@ local function getWorkspacePath()
     return "workspace (folder executor)"
 end
 
+-- FIX: cek script itu sendiri + ancestor
 local function hasCoreAncestor(inst, depth)
     depth = depth or 5
+    if ROBLOX_CORE_NAMES[inst.Name] then return inst.Name end
     local p, i = inst.Parent, 0
     while p and i < depth do
         if ROBLOX_CORE_NAMES[p.Name] then return p.Name end
@@ -955,14 +1005,33 @@ local function countLines(s)
     return n
 end
 
+-- FIX: iterasi baris dengan nomor baris yang benar (baris kosong ikut dihitung)
+local function eachLine(src)
+    local n = 0
+    return function()
+        return nil
+    end, src, n
+end
+
+local function findLines(src, matcher, maxLen)
+    local hits, n = {}, 0
+    for line in (src .. "\n"):gmatch("([^\n]*)\n") do
+        n = n + 1
+        if matcher(line) then
+            table.insert(hits, ("    L%d: %s"):format(n, line:sub(1, maxLen or 120)))
+        end
+    end
+    return hits
+end
+
 -- ==========================================
--- CONFIG SNAPSHOT
+-- CONFIG SNAPSHOT (untuk AI lain baca)
 -- ==========================================
 local function buildConfigSnapshot()
     local out = {}
     local sep = string.rep("=", 62)
     table.insert(out, sep)
-    table.insert(out, "DUMPER v12.1 — CONFIG SNAPSHOT (untuk AI analyst)")
+    table.insert(out, "DUMPER v13 — CONFIG SNAPSHOT (untuk AI analyst)")
     table.insert(out, sep)
     table.insert(out, "Game      : " .. getGameName())
     table.insert(out, "PlaceId   : " .. tostring(game.PlaceId))
@@ -970,15 +1039,20 @@ local function buildConfigSnapshot()
     table.insert(out, "Player    : " .. LocalPlayer.Name)
     table.insert(out, "Generated : " .. os.date("%Y-%m-%d %H:%M:%S"))
     table.insert(out, "")
-    table.insert(out, "─── MEKANISME DUMPER ───")
-    table.insert(out, "1. SCAN         → baca .Source semua script dari root ON")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "MEKANISME DUMPER (baca dulu):")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "1. SCAN         → baca .Source semua script dari root yang ON")
+    table.insert(out, "                  (bukan runtime, hanya snapshot statis dari kode)")
     table.insert(out, "2. SMART/FULL   → build analisis pakai hasil scan")
-    table.insert(out, "3. UI/HK/UC     → rekam data RUNTIME (terpisah dari scan)")
+    table.insert(out, "3. UI/HK/UC     → rekam data RUNTIME terpisah dari scan")
     table.insert(out, "4. Chip RS..TM  → pilih root mana yang di-scan")
-    table.insert(out, "5. Chip DC/BC/RC→ opsi baca source (default OFF anti-crash)")
-    table.insert(out, "6. Chip UI/HK/UC→ rekam aktivitas live (butuh diaktifkan)")
+    table.insert(out, "5. Chip DC/BC/RC→ opsi baca source (default OFF untuk anti-crash)")
+    table.insert(out, "6. Chip UI/HK/UC→ rekam aktivitas live (butuh diaktifkan user)")
     table.insert(out, "")
-    table.insert(out, "─── ROOT SCAN ───")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "ROOT SCAN (chip RS..TM):")
+    table.insert(out, "──────────────────────────────────────────")
     for _, r in ipairs(SKIP_ROOTS) do
         local inf = ROOT_INFO[r.abbr]
         table.insert(out, ("  [%s] %s  %-18s — %s")
@@ -986,23 +1060,38 @@ local function buildConfigSnapshot()
                 r.abbr, inf and inf.name or r.name, inf and inf.desc or ""))
     end
     table.insert(out, "")
-    table.insert(out, "─── OPSI SCAN ───")
-    table.insert(out, ("  [%s] DC  Decompile fallback (LAMBAT)"):format(scanOptions.decompile and "ON " or "OFF"))
-    table.insert(out, ("  [%s] BC  Bytecode dump (SANGAT besar)"):format(scanOptions.bytecode and "ON " or "OFF"))
-    table.insert(out, ("  [%s] RC  Read Roblox core"):format(scanOptions.readCore and "ON " or "OFF"))
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "OPSI SCAN (chip DC/BC/RC):")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, ("  [%s] DC  Decompile fallback (LAMBAT, crash-prone)")
+        :format(scanOptions.decompile and "ON " or "OFF"))
+    table.insert(out, ("  [%s] BC  Bytecode dump (SANGAT besar, tak terbaca)")
+        :format(scanOptions.bytecode and "ON " or "OFF"))
+    table.insert(out, ("  [%s] RC  Read Roblox core (PlayerModule/CameraModule dkk)")
+        :format(scanOptions.readCore and "ON " or "OFF"))
     table.insert(out, "")
-    table.insert(out, "─── RUNTIME CAPTURE ───")
-    table.insert(out, ("  [%s] UI  Watch PlayerGui"):format(uiActive and "ON " or "OFF"))
-    table.insert(out, ("  [%s] HK  Hook FireServer"):format(hkActive and "ON " or "OFF"))
-    table.insert(out, ("  [%s] UC  Unreliable mode"):format(ucActive and "ON " or "OFF"))
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "RUNTIME CAPTURE (chip UI/HK/UC):")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, ("  [%s] UI  Watch PlayerGui (ImageButton/TextButton muncul)")
+        :format(uiActive and "ON " or "OFF"))
+    table.insert(out, ("  [%s] HK  Hook FireServer/InvokeServer (log argumen)")
+        :format(hkActive and "ON " or "OFF"))
+    table.insert(out, ("  [%s] UC  Unreliable mode (patch metatable fallback)")
+        :format(ucActive and "ON " or "OFF"))
     table.insert(out, "")
-    table.insert(out, "─── BUTTON LIST ───")
-    for _, key in ipairs({"SCAN","SMART","MECH","INDEX","FULL","CLR","REM","CFG","PATH","RUN","TREE"}) do
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "BUTTON LIST:")
+    table.insert(out, "──────────────────────────────────────────")
+    for _, key in ipairs({"SCAN","SMART","MECH","INDEX","FULL","CLR",
+                          "REM","CFG","PATH","RUN","TREE"}) do
         local inf = BTN_INFO[key]
         table.insert(out, ("  %-5s — %s"):format(key, inf.desc))
     end
     table.insert(out, "")
-    table.insert(out, "─── STATISTIK DATA ───")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "STATISTIK DATA:")
+    table.insert(out, "──────────────────────────────────────────")
     local r,e,o,b,t = 0,0,0,0,0
     for _, s in ipairs(allScripts) do
         if s.status == "readable" then r = r + 1
@@ -1013,72 +1102,91 @@ local function buildConfigSnapshot()
     end
     table.insert(out, ("  Scripts total      : %d (readable=%d empty=%d obf=%d bcode=%d trunc=%d)")
         :format(#allScripts, r, e, o, b, t))
-    table.insert(out, ("  Runtime UI         : %d tombol"):format(#runtimeCapture.ui))
-    table.insert(out, ("  Runtime FireServer : %d call"):format(#runtimeCapture.fireServer))
-    table.insert(out, ("  Runtime LogService : %d pesan"):format(#runtimeCapture.log))
+    table.insert(out, ("  Runtime UI         : %d tombol tercatat")
+        :format(#runtimeCapture.ui))
+    table.insert(out, ("  Runtime FireServer : %d call tercatat")
+        :format(#runtimeCapture.fireServer))
+    table.insert(out, ("  Runtime LogService : %d pesan")
+        :format(#runtimeCapture.log))
     table.insert(out, "")
-    table.insert(out, "─── DATA YANG TERSEDIA ───")
-    table.insert(out, ("  ✅ Script source   : %d readable"):format(r))
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "DATA APA YANG TERSEDIA DI FILE INI:")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, ("  ✅ Script source   : %d readable script"):format(r))
     table.insert(out, "  ✅ Mechanics pack  : API/Handlers/Modules/Constants")
     table.insert(out, "  ✅ Remotes         : RemoteEvent/RemoteFunction list")
     if #runtimeCapture.ui > 0 then
         table.insert(out, ("  ✅ Runtime UI      : %d tombol"):format(#runtimeCapture.ui))
     else
-        table.insert(out, "  ❌ Runtime UI      : kosong (chip UI OFF / belum buka menu)")
+        table.insert(out, "  ❌ Runtime UI      : kosong (chip UI belum diaktifkan / belum buka menu)")
     end
     if #runtimeCapture.fireServer > 0 then
         table.insert(out, ("  ✅ Runtime FS      : %d call"):format(#runtimeCapture.fireServer))
     else
-        table.insert(out, "  ❌ Runtime FS      : kosong (chip HK OFF / belum nembak)")
+        table.insert(out, "  ❌ Runtime FS      : kosong (HK/UC belum diaktifkan / belum ada aksi)")
     end
     table.insert(out, "")
-    table.insert(out, "─── INSTRUKSI UNTUK AI LAIN ───")
-    table.insert(out, "  - Cek ON/OFF di atas sebelum analisis")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "INSTRUKSI UNTUK AI LAIN:")
+    table.insert(out, "──────────────────────────────────────────")
+    table.insert(out, "  - Cek daftar ON/OFF di atas sebelum analisis")
+    table.insert(out, "  - Data yang ditandai ❌ = tidak ada di file ini")
     table.insert(out, "  - Kalau butuh data yang OFF, minta user:")
-    table.insert(out, "      • PlayerModule → chip RC ON + re-SCAN")
-    table.insert(out, "      • tombol Fire  → chip UI ON, join match")
-    table.insert(out, "      • argumen FS   → chip HK ON, nembak sekali")
-    table.insert(out, "  - Runtime capture TIDAK butuh SCAN ulang")
-    table.insert(out, "  - Saran 'data penting saja': RS + SP saja (skip WS/PL/SG)")
+    table.insert(out, "      • untuk PlayerModule → aktifkan chip RC + re-SCAN")
+    table.insert(out, "      • untuk tombol runtime → aktifkan chip UI, buka menu/match, baru capture")
+    table.insert(out, "      • untuk argumen remote → aktifkan chip HK (atau UC), lakukan aksi sekali")
+    table.insert(out, "  - Runtime capture TIDAK butuh SCAN ulang, cukup aktifkan chip")
+    table.insert(out, "  - Kalau user minta data yang 'penting saja', saran:")
+    table.insert(out, "      • Script logic  → RS + SP saja (skip WS/PL/SG)")
+    table.insert(out, "      • Runtime UI    → UI on, buka menu")
+    table.insert(out, "      • Argumen remote→ HK on (atau UC on), lakukan aksi sekali")
     table.insert(out, sep)
     return table.concat(out, "\n")
 end
 
+-- ==========================================
+-- RUNTIME SECTION BUILDER
+-- ==========================================
 local function buildRuntimeSection()
     local sep = string.rep("=", 62)
     local out = { sep, "RUNTIME CAPTURE", sep }
+
     if #runtimeCapture.ui == 0 and #runtimeCapture.fireServer == 0 then
         table.insert(out, "")
         table.insert(out, "⚠ Tidak ada runtime capture.")
-        table.insert(out, "  UI: aktifkan chip UI → join match")
-        table.insert(out, "  FS: aktifkan chip HK → nembak sekali")
+        table.insert(out, "  Untuk UI  : aktifkan chip UI → buka menu")
+        table.insert(out, "  Untuk FS  : aktifkan chip HK → lakukan aksi sekali")
     end
+
     if #runtimeCapture.ui > 0 then
         table.insert(out, "")
-        table.insert(out, ("## UI — %d tombol"):format(#runtimeCapture.ui))
+        table.insert(out, ("## UI — %d tombol (ImageButton/TextButton)"):format(#runtimeCapture.ui))
         for i, e in ipairs(runtimeCapture.ui) do
-            table.insert(out, ("[%d] %s [%s]"):format(i, e.path, e.class))
+            table.insert(out, ("[%d] %s [%s]")
+                :format(i, e.path, e.class))
             table.insert(out, ("     pos=%s size=%s visible=%s")
                 :format(e.pos, e.size, tostring(e.visible)))
             if e.text ~= "" then
-                table.insert(out, ("     text=" .. e.text:sub(1, 40)))
+                table.insert(out, ("     text=%q"):format(e.text:sub(1, 40)))
             end
             if e.image ~= "" then
-                table.insert(out, ("     image=" .. e.image:sub(1, 80)))
+                table.insert(out, ("     image=%s"):format(e.image:sub(1, 80)))
             end
         end
     end
+
     if #runtimeCapture.fireServer > 0 then
         table.insert(out, "")
         table.insert(out, ("## FireServer/InvokeServer — %d call"):format(#runtimeCapture.fireServer))
+        table.insert(out, "  Format: [n] Method Remote(args) — arg tipe+isi")
         for i, e in ipairs(runtimeCapture.fireServer) do
             table.insert(out, ("[%d] %s %s(%s)")
                 :format(i, e.method, e.remote, table.concat(e.args, ", ")))
         end
         table.insert(out, "")
-        table.insert(out, "  💡 Vector3 = origin/direction (SilentAim target)")
-        table.insert(out, "     String = nama senjata/action")
+        table.insert(out, "  💡 Analisis: argumen Vector3/CFrame = posisi/arah, string = nama aksi/item.")
     end
+
     if #runtimeCapture.log > 0 then
         table.insert(out, "")
         table.insert(out, ("## LogService — %d pesan"):format(#runtimeCapture.log))
@@ -1086,17 +1194,20 @@ local function buildRuntimeSection()
             table.insert(out, ("[%d] [%s] %s"):format(i, e.type, e.msg))
         end
     end
+
     table.insert(out, sep)
     return table.concat(out, "\n")
 end
 
 -- ==========================================
--- BUILDERS
+-- BUILDERS (index/remotes/tree/config/mechanics)
 -- ==========================================
 local function buildIndex()
     local out = { string.rep("=",60), "SCRIPT INDEX", string.rep("=",60),
-        "Game    : " .. getGameName(), "PlaceId : " .. tostring(game.PlaceId),
-        "JobId   : " .. tostring(game.JobId), "Total   : " .. #allScripts, "" }
+        "Game    : " .. getGameName(),
+        "PlaceId : " .. tostring(game.PlaceId),
+        "JobId   : " .. tostring(game.JobId),
+        "Total   : " .. #allScripts, "" }
     local sorted = {}
     for _, s in ipairs(allScripts) do table.insert(sorted, s) end
     table.sort(sorted, function(a, b) return a.path < b.path end)
@@ -1107,16 +1218,16 @@ local function buildIndex()
     return table.concat(out, "\n")
 end
 
+local function isRemoteInstance(d)
+    if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then return true end
+    local ok, res = pcall(function() return d:IsA("UnreliableRemoteEvent") end)
+    return ok and res == true
+end
+
 local function buildRemotes()
     local out = { "=== REMOTES ===" }
     for _, d in ipairs(game:GetDescendants()) do
-        local isRemote = d:IsA("RemoteEvent") or d:IsA("RemoteFunction")
-        if not isRemote then
-            pcall(function()
-                if d:IsA("UnreliableRemoteEvent") then isRemote = true end
-            end)
-        end
-        if isRemote then
+        if isRemoteInstance(d) then
             table.insert(out, ("[%s] %s"):format(d.ClassName, d:GetFullName()))
         end
     end
@@ -1145,8 +1256,7 @@ local function buildTree()
                         local ok2, lvl2 = pcall(function() return c1:GetChildren() end)
                         if ok2 and lvl2 then
                             for _, c2 in ipairs(lvl2) do
-                                table.insert(out, ("    %s [%s]%s")
-                                    :format(c2.Name, c2.ClassName, tagOf(c2)))
+                                table.insert(out, ("    %s [%s]%s"):format(c2.Name, c2.ClassName, tagOf(c2)))
                             end
                         end
                     end
@@ -1160,34 +1270,34 @@ end
 
 local function buildConfig()
     local out = { "=== VALUES ===" }
-    for _, root in ipairs({game.ReplicatedStorage, game.Workspace, game.Lighting, game.StarterPlayer}) do
-        if root then
-            for _, d in ipairs(root:GetDescendants()) do
-                local cls = d.ClassName
-                if cls == "StringValue" or cls == "NumberValue"
-                or cls == "BoolValue" or cls == "IntValue" or cls == "ObjectValue" then
-                    local v
-                    if cls == "StringValue" then v = '"' .. tostring(d.Value):sub(1,80) .. '"'
-                    elseif cls == "ObjectValue" then v = d.Value and d.Value:GetFullName() or "nil"
-                    else v = tostring(d.Value) end
-                    table.insert(out, ("[%s] %s = %s"):format(cls, d:GetFullName(), v))
-                end
+    local valueRoots = {}
+    for _, n in ipairs({"ReplicatedStorage","Workspace","Lighting","StarterPlayer"}) do
+        local ok, svc = pcall(function() return game:GetService(n) end)
+        if ok and svc then table.insert(valueRoots, svc) end
+    end
+    for _, root in ipairs(valueRoots) do
+        for _, d in ipairs(root:GetDescendants()) do
+            local cls = d.ClassName
+            if cls == "StringValue" or cls == "NumberValue"
+            or cls == "BoolValue" or cls == "IntValue" or cls == "ObjectValue" then
+                local v
+                if cls == "StringValue" then v = '"' .. tostring(d.Value):sub(1,80) .. '"'
+                elseif cls == "ObjectValue" then v = d.Value and d.Value:GetFullName() or "nil"
+                else v = tostring(d.Value) end
+                table.insert(out, ("[%s] %s = %s"):format(cls, d:GetFullName(), v))
             end
         end
     end
     table.insert(out, "\n=== ATTRIBUTES ===")
-    for _, root in ipairs({game.ReplicatedStorage, game.Workspace, game.Lighting}) do
-        if root then
-            for _, d in ipairs(root:GetDescendants()) do
-                if type(d.GetAttributes) == "function" then
-                    local ok, attrs = pcall(function() return d:GetAttributes() end)
-                    if ok and attrs and next(attrs) then
-                        local p = {}
-                        for k, v in pairs(attrs) do table.insert(p, k .. "=" .. tostring(v)) end
-                        table.insert(out, ("[Attr] %s: {%s}")
-                            :format(d:GetFullName(), table.concat(p, ", ")))
-                    end
-                end
+    for i = 1, math.min(3, #valueRoots) do
+        local root = valueRoots[i]
+        for _, d in ipairs(root:GetDescendants()) do
+            local ok, attrs = pcall(function() return d:GetAttributes() end)
+            if ok and attrs and next(attrs) then
+                local p = {}
+                for k, v in pairs(attrs) do table.insert(p, k .. "=" .. tostring(v)) end
+                table.insert(out, ("[Attr] %s: {%s}")
+                    :format(d:GetFullName(), table.concat(p, ", ")))
             end
         end
     end
@@ -1223,16 +1333,11 @@ local function buildMechanics()
     local apiCount = 0
     for _, s in ipairs(allScripts) do
         if s.src then
-            local calls = {}
-            local n = 0
-            for line in s.src:gmatch("[^\n]+") do
-                n = n + 1
-                if line:find(":FireServer") or line:find(":InvokeServer") then
-                    table.insert(calls, ("    L%d: %s"):format(n, line:sub(1, 120)))
-                    apiCount = apiCount + 1
-                end
-            end
+            local calls = findLines(s.src, function(line)
+                return line:find(":FireServer", 1, true) or line:find(":InvokeServer", 1, true)
+            end)
             if #calls > 0 then
+                apiCount = apiCount + #calls
                 table.insert(parts, "")
                 table.insert(parts, ("[%s] %s"):format(s.class, s.path))
                 for _, c in ipairs(calls) do table.insert(parts, c) end
@@ -1248,15 +1353,12 @@ local function buildMechanics()
     local hCount = 0
     for _, s in ipairs(allScripts) do
         if s.src then
-            local handlers, n = {}, 0
-            for line in s.src:gmatch("[^\n]+") do
-                n = n + 1
-                if line:find("OnClientEvent") or line:find("GetPropertyChangedSignal") then
-                    table.insert(handlers, ("    L%d: %s"):format(n, line:sub(1,120)))
-                    hCount = hCount + 1
-                end
-            end
+            local handlers = findLines(s.src, function(line)
+                return line:find("OnClientEvent", 1, true)
+                    or line:find("GetPropertyChangedSignal", 1, true)
+            end)
             if #handlers > 0 then
+                hCount = hCount + #handlers
                 table.insert(parts, "")
                 table.insert(parts, ("[%s] %s"):format(s.class, s.path))
                 for _, h in ipairs(handlers) do table.insert(parts, h) end
@@ -1348,10 +1450,13 @@ end
 
 local function rebuildList()
     clearList()
+    renderToken = renderToken + 1          -- FIX: batalkan render lama yang masih jalan
+    local myToken = renderToken
     local filter = filterBox.Text:lower()
     local shown, batch, capped = 0, 0, false
-    safeSpawn(function()
+    task.spawn(function()
         for _, s in ipairs(allScripts) do
+            if myToken ~= renderToken then return end
             if shown >= SCAN.RENDER_CAP then capped = true break end
             if filter == "" or s.path:lower():find(filter, 1, true) then
                 shown = shown + 1
@@ -1403,10 +1508,11 @@ local function rebuildList()
                 batch = batch + 1
                 if batch % 50 == 0 then
                     scroll.CanvasSize = UDim2.new(0,0,0, layout.AbsoluteContentSize.Y + 4)
-                    safeWait()
+                    task.wait()
                 end
             end
         end
+        if myToken ~= renderToken then return end
         scroll.CanvasSize = UDim2.new(0,0,0, layout.AbsoluteContentSize.Y + 4)
         status.Text = capped
             and ("Showing %d / %d — FILTER"):format(shown, #allScripts)
@@ -1421,6 +1527,7 @@ local function doScan()
     if scanRunning then status.Text = "Scan running..." return end
     scanRunning = true
     scanAbort = false
+    renderToken = renderToken + 1
     clearList()
     allScripts = {}
     bigScripts = {}
@@ -1429,8 +1536,8 @@ local function doScan()
     scanLog("[SCAN] ▶ START (safe mode)", Color3.fromRGB(100,180,255))
     setRtStatus("⏳ starting…", Color3.fromRGB(255, 200, 100))
 
-    safeSpawn(function()
-        local t0 = tick()
+    task.spawn(function()
+        local t0 = os.clock()
         local roots = {}
         for _, name in ipairs({
             "ReplicatedStorage","ReplicatedFirst","StarterPlayer",
@@ -1452,136 +1559,164 @@ local function doScan()
                 rootsSkipped = rootsSkipped + 1
                 scanLog(("[SKIP] %s (disabled)"):format(root.Name),
                     Color3.fromRGB(255, 140, 100))
-                safeWait(0.05)
-                -- skip via if instead of continue (compat)
-            else
-                setRtStatus(("⏳ %s | collecting… (%d/%d)")
-                    :format(root.Name, rootIdx, totalRoots),
-                    Color3.fromRGB(255, 200, 100))
-                safeWait()
+                task.wait(0.05); continue
+            end
 
-                local desc = nil
-                local ok = pcall(function() desc = root:GetDescendants() end)
-                if not ok or not desc then
-                    scanLog(("[ERR] %s GetDescendants fail"):format(root.Name),
+            setRtStatus(("⏳ %s | collecting… (%d/%d)")
+                :format(root.Name, rootIdx, totalRoots),
+                Color3.fromRGB(255, 200, 100))
+            task.wait()
+
+            local desc = nil
+            local ok = pcall(function() desc = root:GetDescendants() end)
+            if not ok or not desc then
+                scanLog(("[ERR] %s GetDescendants fail"):format(root.Name),
+                    Color3.fromRGB(255, 100, 100))
+                continue
+            end
+
+            setRtStatus(("⏳ %s | filtering %d inst…")
+                :format(root.Name, #desc), Color3.fromRGB(255, 200, 100))
+            task.wait()
+
+            local scriptsOnly = {}
+            for i = 1, #desc do
+                local d = desc[i]
+                local c = d.ClassName
+                if c == "LocalScript" or c == "ModuleScript" or c == "Script" then
+                    if not scanOptions.readCore then
+                        local coreName = hasCoreAncestor(d, 5)
+                        if coreName then cSkip = cSkip + 1
+                        else table.insert(scriptsOnly, d) end
+                    else
+                        table.insert(scriptsOnly, d)
+                    end
+                end
+                if i % 500 == 0 then task.wait() end
+            end
+            local totalDesc = #desc
+            desc = nil
+
+            local nScripts = #scriptsOnly
+            local cappedByLimit = false
+            if nScripts > SCAN.MAX_SCRIPTS_ROOT then
+                cappedByLimit = true
+                local trimmed = {}
+                for i = 1, SCAN.MAX_SCRIPTS_ROOT do trimmed[i] = scriptsOnly[i] end
+                scriptsOnly = trimmed
+                nScripts = SCAN.MAX_SCRIPTS_ROOT
+            end
+
+            scanLog(("[ROOT] ▶ %s — %d inst, %d script%s%s")
+                :format(root.Name, totalDesc, nScripts,
+                    cappedByLimit and " (CAPPED)" or "",
+                    cSkip > 0 and (" (+" .. cSkip .. " core skipped)") or ""),
+                Color3.fromRGB(150,180,220))
+
+            local rootStart, rootScripts, rootAborted = os.clock(), 0, false
+
+            for i = 1, nScripts do
+                if scanAbort then rootAborted = true break end
+                if totalSrcBytes > SCAN.MAX_TOTAL_MEM then
+                    scanLog("[ABORT] memory limit " ..
+                        math.floor(SCAN.MAX_TOTAL_MEM/1024/1024) .. "MB reached",
                         Color3.fromRGB(255, 100, 100))
-                else
-                    setRtStatus(("⏳ %s | filtering %d inst…")
-                        :format(root.Name, #desc), Color3.fromRGB(255, 200, 100))
-                    safeWait()
+                    rootAborted = true scanAbort = true break
+                end
 
-                    local scriptsOnly = {}
-                    for i = 1, #desc do
-                        local d = desc[i]
-                        local c = d.ClassName
-                        if c == "LocalScript" or c == "ModuleScript" or c == "Script" then
-                            if not scanOptions.readCore then
-                                local coreName = hasCoreAncestor(d, 5)
-                                if coreName then cSkip = cSkip + 1
-                                else table.insert(scriptsOnly, d) end
+                local d = scriptsOnly[i]
+                local path = d:GetFullName()
+                local src, how, origSize = readSource(d, SCAN.MAX_SCRIPT_SIZE)
+                local size = origSize or 0
+                local st = "empty"
+
+                if src then
+                    if how == "truncated" then st = "truncated" cTrunc = cTrunc + 1
+                    elseif how == "bcode" then st = "bcode" cBc = cBc + 1
+                    else
+                        local obfFlag = false
+                        if size < 10000 and size > 200 then
+                            if src:find("LPH_", 1, true) or src:find("__prometheus", 1, true) then
+                                obfFlag = true
                             else
-                                table.insert(scriptsOnly, d)
-                            end
-                        end
-                        if i % 500 == 0 then safeWait() end
-                    end
-                    local totalDesc = #desc
-                    desc = nil
-
-                    local nScripts = #scriptsOnly
-                    if nScripts > SCAN.MAX_SCRIPTS_ROOT then
-                        local trimmed = {}
-                        for i = 1, SCAN.MAX_SCRIPTS_ROOT do trimmed[i] = scriptsOnly[i] end
-                        scriptsOnly = trimmed
-                        nScripts = SCAN.MAX_SCRIPTS_ROOT
-                    end
-
-                    scanLog(("[ROOT] ▶ %s — %d inst, %d script%s")
-                        :format(root.Name, totalDesc, nScripts,
-                            cSkip > 0 and (" (+" .. cSkip .. " core skipped)") or ""),
-                        Color3.fromRGB(150,180,220))
-
-                    local rootStart, rootScripts = tick(), 0
-
-                    for i = 1, nScripts do
-                        if scanAbort then break end
-                        if totalSrcBytes > SCAN.MAX_TOTAL_MEM then
-                            scanLog("[ABORT] memory limit reached",
-                                Color3.fromRGB(255, 100, 100))
-                            scanAbort = true break
-                        end
-
-                        local d = scriptsOnly[i]
-                        local path = d:GetFullName()
-                        local src, how, origSize = readSource(d, SCAN.MAX_SCRIPT_SIZE)
-                        local size = origSize or 0
-                        local st = "empty"
-
-                        if src then
-                            if how == "truncated" then st = "truncated" cTrunc = cTrunc + 1
-                            elseif how == "bcode" then st = "bcode" cBc = cBc + 1
-                            else
-                                local obfFlag = false
-                                if size < 10000 and size > 200 then
-                                    if src:find("LPH_", 1, true) or src:find("__prometheus", 1, true) then
-                                        obfFlag = true
-                                    end
+                                local sample = src:sub(1, math.min(#src, 500))
+                                local bs = 0
+                                for k = 1, #sample do
+                                    if sample:byte(k) == 92 then bs = bs + 1 end
                                 end
-                                if obfFlag then st = "obf" cObf = cObf + 1
-                                else st = "readable" cRead = cRead + 1 end
+                                if bs > 20 then obfFlag = true end
                             end
-                            totalSrcBytes = totalSrcBytes + #src
-
-                            if size >= SCAN.BIG_LOG_THRESH then
-                                table.insert(bigScripts, {path=path, size=size})
-                                scanLog(("[BIG] %.1fKB %s"):format(size/1024, path),
-                                    Color3.fromRGB(255, 180, 80))
-                            end
-                        else
-                            cEmpty = cEmpty + 1
                         end
-
-                        rootScripts = rootScripts + 1
-                        table.insert(allScripts, {
-                            inst = d, path = path, class = d.ClassName,
-                            size = size, status = st, src = src, how = how,
-                        })
-
-                        local curName = d.Name:sub(1, 12)
-                        local parName = (d.Parent and d.Parent.Name or "?"):sub(1, 12)
-                        setRtStatus(("⏳ %s > %s > %s [%d/%d] %.1fKB | r=%d e=%d o=%d t=%d mem=%.1fMB")
-                            :format(root.Name, parName, curName, i, nScripts,
-                                size/1024, cRead, cEmpty, cObf, cTrunc,
-                                totalSrcBytes/1024/1024),
-                            Color3.fromRGB(255, 200, 100))
-                        status.Text = ("Scan… r=%d e=%d o=%d t=%d mem=%.1fMB")
-                            :format(cRead, cEmpty, cObf, cTrunc, totalSrcBytes/1024/1024)
-
-                        if nScripts > 500 then safeWait()
-                        elseif nScripts > 200 and i % 2 == 0 then safeWait()
-                        elseif nScripts > 50 and i % 5 == 0 then safeWait()
-                        elseif i % 20 == 0 then safeWait() end
-
-                        if tick() - rootStart > SCAN.ROOT_TIMEOUT then
-                            scanLog(("[TIMEOUT] %s >%ds"):format(root.Name, SCAN.ROOT_TIMEOUT),
-                                Color3.fromRGB(255, 140, 100))
-                            break
-                        end
+                        if obfFlag then st = "obf" cObf = cObf + 1
+                        else st = "readable" cRead = cRead + 1 end
                     end
+                    totalSrcBytes = totalSrcBytes + #src
 
-                    scanLog(("[ROOT] ✓ %s — %d scripts (%.1fs)")
-                        :format(root.Name, rootScripts, tick() - rootStart),
-                        Color3.fromRGB(100,200,150))
+                    if size >= SCAN.BIG_LOG_THRESH then
+                        table.insert(bigScripts, {path=path, size=size})
+                        scanLog(("[BIG] %.1fKB %s%s"):format(
+                            size/1024, path,
+                            size > SCAN.MAX_SCRIPT_SIZE and " (TRUNCATED)" or ""),
+                            Color3.fromRGB(255, 180, 80))
+                    end
+                else
+                    cEmpty = cEmpty + 1
+                end
+
+                rootScripts = rootScripts + 1
+                table.insert(allScripts, {
+                    inst = d, path = path, class = d.ClassName,
+                    size = size, status = st, src = src, how = how,
+                })
+
+                local curName = d.Name:sub(1, 12)
+                local parName = (d.Parent and d.Parent.Name or "?"):sub(1, 12)
+                setRtStatus(("⏳ %s > %s > %s [%d/%d] %.1fKB | r=%d e=%d o=%d t=%d mem=%.1fMB")
+                    :format(root.Name, parName, curName, i, nScripts,
+                        size/1024, cRead, cEmpty, cObf, cTrunc,
+                        totalSrcBytes/1024/1024),
+                    Color3.fromRGB(255, 200, 100))
+                status.Text = ("Scan… r=%d e=%d o=%d t=%d mem=%.1fMB")
+                    :format(cRead, cEmpty, cObf, cTrunc, totalSrcBytes/1024/1024)
+
+                if nScripts > 500 then task.wait()
+                elseif nScripts > 200 and i % 2 == 0 then task.wait()
+                elseif nScripts > 50 and i % 5 == 0 then task.wait()
+                elseif i % 20 == 0 then task.wait() end
+
+                if os.clock() - rootStart > SCAN.ROOT_TIMEOUT then
+                    scanLog(("[TIMEOUT] %s >%ds"):format(root.Name, SCAN.ROOT_TIMEOUT),
+                        Color3.fromRGB(255, 140, 100))
+                    break
                 end
             end
-            safeWait()
+
+            if not rootAborted then
+                scanLog(("[ROOT] ✓ %s — %d scripts (%.1fs)")
+                    :format(root.Name, rootScripts, os.clock() - rootStart),
+                    Color3.fromRGB(100,200,150))
+            end
+            task.wait()
         end
 
-        local el = tick() - t0
+        local el = os.clock() - t0
         scanLog(("[DONE] r=%d e=%d o=%d bc=%d t=%d skip=%d (%.1fs) mem=%.1fMB")
             :format(cRead,cEmpty,cObf,cBc,cTrunc,cSkip,el,totalSrcBytes/1024/1024),
             Color3.fromRGB(100,255,180))
 
+        if #bigScripts > 0 then
+            table.sort(bigScripts, function(a,b) return a.size > b.size end)
+            scanLog("[SUMMARY] Top big scripts:", Color3.fromRGB(255, 200, 100))
+            for i = 1, math.min(5, #bigScripts) do
+                scanLog(("  %d. %.0fKB  %s"):format(
+                    i, bigScripts[i].size/1024, bigScripts[i].path),
+                    Color3.fromRGB(255, 180, 80))
+            end
+        end
+
+        if scanAbort then
+            scanLog("[DONE] aborted — hasil sebagian", Color3.fromRGB(255, 200, 100))
+        end
         status.Text = ("R=%d E=%d O=%d T=%d"):format(cRead, cEmpty, cObf, cTrunc)
         setRtStatus(("✓ done r=%d e=%d o=%d t=%d (%.1fs, %.1fMB)")
             :format(cRead, cEmpty, cObf, cTrunc, el, totalSrcBytes/1024/1024),
@@ -1593,7 +1728,7 @@ local function doScan()
 end
 
 -- ==========================================
--- SAVE
+-- SAVE HELPER
 -- ==========================================
 local function saveToFile(text, prefix)
     local sizeStr = #text >= 1024 and ("%.1f KB"):format(#text/1024) or (#text .. " B")
@@ -1632,10 +1767,21 @@ end
 scanBtn.MouseButton1Click:Connect(doScan)
 
 smartBtn.MouseButton1Click:Connect(function()
-    scanLog("[SMART] building…", Color3.fromRGB(100,220,180))
-    local parts = { buildConfigSnapshot(), buildRuntimeSection(), buildMechanics() }
+    if scanRunning then
+        scanLog("[SMART] tunggu scan selesai", Color3.fromRGB(255,180,80)) return
+    end
+    if #allScripts == 0 then
+        scanLog("[SMART] ⚠ belum SCAN — hanya config+runtime", Color3.fromRGB(255,180,80))
+    end
+    scanLog("[SMART] building pack + snapshot…", Color3.fromRGB(100,220,180))
+    local parts = {
+        buildConfigSnapshot(),
+        buildRuntimeSection(),
+        buildMechanics(),
+    }
     local text = table.concat(parts, "\n\n")
-    scanLog("[SMART] size: " .. (#text >= 1024 and ("%.1f KB"):format(#text/1024) or (#text .. " B")),
+    scanLog("[SMART] size: " .. (#text >= 1024
+        and ("%.1f KB"):format(#text/1024) or (#text .. " B")),
         Color3.fromRGB(100,220,180))
     saveToFile(text, "mechanics")
 end)
@@ -1646,16 +1792,30 @@ mechBtn.MouseButton1Click:Connect(function()
     end
     local text = buildMechanics()
     copyText(text, "mechanics")
-    scanLog(("[MECH] %d char"):format(#text), Color3.fromRGB(100,200,255))
+    scanLog(("[MECH] %d char copied"):format(#text), Color3.fromRGB(100,200,255))
 end)
 
 fullBtn.MouseButton1Click:Connect(function()
-    scanLog("[FULL] building…", Color3.fromRGB(180,180,220))
+    if scanRunning then
+        scanLog("[FULL] tunggu scan selesai", Color3.fromRGB(255,180,80)) return
+    end
+    if #allScripts == 0 then
+        scanLog("[FULL] ⚠ belum SCAN — script source kosong", Color3.fromRGB(255,180,80))
+    end
+    scanLog("[FULL] building full pack…", Color3.fromRGB(180,180,220))
     local parts = {
-        buildConfigSnapshot(), buildRuntimeSection(), buildIndex(),
-        buildMechanics(), buildRemotes(), buildTree(), buildConfig(),
+        buildConfigSnapshot(),
+        buildRuntimeSection(),
+        buildIndex(),
+        buildMechanics(),
+        buildRemotes(),
+        buildTree(),
+        buildConfig(),
     }
     local text = table.concat(parts, "\n\n")
+    scanLog("[FULL] size: " .. (#text >= 1024
+        and ("%.1f KB"):format(#text/1024) or (#text .. " B")),
+        Color3.fromRGB(180,180,220))
     saveToFile(text, "full")
 end)
 
@@ -1712,9 +1872,9 @@ runBtn.MouseButton1Click:Connect(function()
         return game:GetService("LogService").MessageOut:Connect(function(msg, typ)
             local prefix = typ == Enum.MessageType.MessageError and "[ERR] " or
                 typ == Enum.MessageType.MessageWarning and "[WRN] " or "[OUT] "
-            scanLog(prefix .. tostring(msg):sub(1,120),
-                typ == Enum.MessageType.MessageError
-                    and Color3.fromRGB(255,120,120) or Color3.fromRGB(200,200,150))
+            local line = prefix .. tostring(msg):sub(1,120)
+            scanLog(line, typ == Enum.MessageType.MessageError
+                and Color3.fromRGB(255,120,120) or Color3.fromRGB(200,200,150))
             table.insert(runtimeCapture.log, {
                 time = os.clock(), type = prefix:sub(2,4), msg = tostring(msg):sub(1,120)
             })
@@ -1726,7 +1886,8 @@ runBtn.MouseButton1Click:Connect(function()
     for _, d in ipairs(game:GetDescendants()) do
         local isRemote = d:IsA("RemoteEvent")
         if not isRemote then
-            pcall(function() if d:IsA("UnreliableRemoteEvent") then isRemote = true end end)
+            local okU, res = pcall(function() return d:IsA("UnreliableRemoteEvent") end)
+            isRemote = okU and res == true
         end
         if isRemote then
             local ok2, c2 = pcall(function()
@@ -1734,7 +1895,10 @@ runBtn.MouseButton1Click:Connect(function()
                     local args = table.pack(...)
                     local parts = {}
                     for i = 1, math.min(args.n, 5) do
-                        parts[i] = formatArg(args[i])
+                        local v = args[i]
+                        if typeof(v) == "Instance" then
+                            parts[i] = v.Name
+                        else parts[i] = tostring(v):sub(1, 30) end
                     end
                     scanLog(("← %s(%s)"):format(d.Name, table.concat(parts, ", ")),
                         Color3.fromRGB(100,200,255))
@@ -1746,7 +1910,7 @@ runBtn.MouseButton1Click:Connect(function()
     runtimeActive = true
     runBtn.Text = "STOP"
     runBtn.BackgroundColor3 = Color3.fromRGB(180,60,60)
-    scanLog(("[RUN] %d remotes + LogService"):format(hooked),
+    scanLog(("[RUN] %d remotes hooked + LogService"):format(hooked),
         Color3.fromRGB(100,255,150))
 end)
 
@@ -1757,10 +1921,11 @@ clrBtn.MouseButton1Click:Connect(function()
         setRtStatus("⏹ aborting…", Color3.fromRGB(255, 140, 100))
         return
     end
+    renderToken = renderToken + 1
     clearList()
     allScripts = {} bigScripts = {}
     status.Text = "Cleared."
-    scanLog("[CLR] cleared (runtime tetap)", Color3.fromRGB(200,140,140))
+    scanLog("[CLR] list cleared (runtime tetap)", Color3.fromRGB(200,140,140))
 end)
 
 clearLogBtn.MouseButton1Click:Connect(function()
@@ -1774,18 +1939,14 @@ end)
 filterBox:GetPropertyChangedSignal("Text"):Connect(function()
     filterToken = filterToken + 1
     local t = filterToken
-    safeSpawn(function()
-        safeWait(0.3)
+    task.delay(0.3, function()
         if t == filterToken and #allScripts > 0 then rebuildList() end
     end)
 end)
 
--- ==========================================
--- BOOT COMPLETE
--- ==========================================
-scanLog("[BOOT] v12.1 — Arceus X safe", Color3.fromRGB(150,180,255))
-scanLog("[BOOT] DC/BC/RC OFF = anti-crash", Color3.fromRGB(150,200,255))
-scanLog("[BOOT] Chip UI/HK/UC = runtime (bukan scan)", Color3.fromRGB(150,200,255))
-scanLog("[BOOT] Klik kanan chip untuk info", Color3.fromRGB(200,180,120))
+scanLog("[BOOT] v13 — Safe Mode + Runtime Capture", Color3.fromRGB(150,180,255))
+scanLog("[BOOT] Chip DC/BC/RC OFF = anti-crash", Color3.fromRGB(150,200,255))
+scanLog("[BOOT] Chip UI/HK/UC = rekam runtime (bukan scan)", Color3.fromRGB(150,200,255))
+scanLog("[BOOT] Tahan chip 0.5 dtk = info (mobile)", Color3.fromRGB(150,200,255))
+scanLog("[BOOT] SMART & FULL selalu sertakan config snapshot", Color3.fromRGB(200,180,120))
 status.Text = "Ready."
-print("[Dumper v12.1] ✓ boot complete")
