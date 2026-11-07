@@ -4,7 +4,7 @@ return function(REN)
     REN.Config = {
         PlaylistURL     = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/playlist.json",
         FirebaseURL     = "https://music-ad0eb-default-rtdb.asia-southeast1.firebasedatabase.app",
-        DiscordWebhook  = "https://discord.com/api/webhooks/1564257126648512593/e3Xn_y8jduyENW6Vti7CBdinnqk8CTXixSliasOs3c8-OEqc45VKoGeIvIQ1-kGVliiH",
+        DiscordWebhook  = "https://discord.com/api/webhooks/1567772015421685772/iADRBntZYDHML7AO5wEUo_kI-uJN4Tz8UU1i8r7FGuqGQF1z4JqxhwbOhAw7ZjZ_Xbrk",
         MusicVolume     = 0.5,
         DefaultIconPos  = UDim2.new(0, 12, 0.5, -20),
         DefaultPanelPos = UDim2.new(0, 60, 0.5, -140),
