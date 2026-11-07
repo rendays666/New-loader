@@ -49,11 +49,16 @@ return function(REN)
             isSubmission    = true,
             submittedBy     = S.player.UserId,
             submittedByName = S.player.Name,
+            uploader        = S.player.Name,
             likes = {}, dislikes = {},
         }
-        table.insert(S.playlist, entry)
+        table.insert(S.allSongs, entry)
         PL.registerId(assetId)
-        if S.appendRowToUI then S.appendRowToUI(#S.playlist, entry) end
+        -- Di mode "My Likes" lagu baru belum di-like, jadi tidak masuk list aktif.
+        if S.viewMode ~= "mine" then
+            table.insert(S.playlist, entry)
+            if S.appendRowToUI then S.appendRowToUI(#S.playlist, entry) end
+        end
         So.notifyDiscord(entry, loudnessOrErr)
         return entry, nil
     end
