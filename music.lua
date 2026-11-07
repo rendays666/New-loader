@@ -1,10 +1,10 @@
 --[[
-  RENRENHUB — MUSIC LOADER v3.7.0
+  RENRENHUB — MUSIC LOADER v3.8.0
   Entry point. URL TIDAK berubah.
   (Loading GUI & log panel sudah dihapus — error hanya di console via warn.)
 ]]
 
-local SCRIPT_VERSION = "3.7.0"
+local SCRIPT_VERSION = "3.8.0"
 
 local BASE_URLS = {
     "https://raw.githubusercontent.com/rendays666/New-loader/main/music_modules/",
@@ -12,7 +12,7 @@ local BASE_URLS = {
 }
 
 local MODULE_ORDER = {
-    "config", "state", "utils", "firebase", "playlist",
+    "config", "state", "utils", "persist", "firebase", "playlist",
     "audio", "social", "submit", "ratings",
     "ui/widgets", "ui/dialogs", "ui/rows", "ui/panel",
     "bootstrap",
@@ -127,6 +127,12 @@ local function main()
 
     local REN = { version = SCRIPT_VERSION }
     local env = (getgenv and getgenv()) or _G
+    -- Cache modul hanya dipakai ulang kalau versinya sama; kalau SCRIPT_VERSION
+    -- naik, semua modul diambil ulang (kalau tidak, re-execute masih pakai kode lama).
+    if env.__REN_MUSIC_CACHE_VER ~= SCRIPT_VERSION then
+        env.__REN_MUSIC_MODULES = {}
+        env.__REN_MUSIC_CACHE_VER = SCRIPT_VERSION
+    end
     local CACHE = env.__REN_MUSIC_MODULES or {}
     env.__REN_MUSIC_MODULES = CACHE
 
