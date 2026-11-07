@@ -5,6 +5,14 @@ return function(REN)
     local S = REN.State
     local C = REN.Config
     local A = REN.Audio
+    local PL = REN.Playlist
+
+    -- Satu tombol, tiga mode: Top Likes -> My Likes -> Shuffle -> (ulang)
+    local VIEW_STYLE = {
+        top     = { text = "Top Likes", color = Color3.fromRGB(60, 90, 60)  },
+        mine    = { text = "My Likes",  color = Color3.fromRGB(125, 55, 80) },
+        shuffle = { text = "Shuffle",   color = Color3.fromRGB(50, 80, 125) },
+    }
 
     REN.createMusicUI = function()
         local pg = S.playerGui
@@ -61,19 +69,15 @@ return function(REN)
 
         -- ═══ SEARCH + SMALL BUTTONS ═════════════════════════════════
         local searchBox = W.input(panel, {
-            Size = UDim2.new(1, -60, 0, 20), Position = UDim2.fromOffset(8, 26),
-            PlaceholderText = "Search songs...",
+            Size = UDim2.new(1, -78, 0, 20), Position = UDim2.fromOffset(8, 26),
+            PlaceholderText = "Search title / uploader / ID...",
         })
 
-        local function smallBtn(x, text, bg)
-            return W.button(panel, {
-                Size = UDim2.fromOffset(20, 20), Position = UDim2.new(1, x, 0, 26),
-                BackgroundColor3 = bg or Color3.fromRGB(35, 40, 55),
-                Text = text, TextSize = 11,
-            })
-        end
-        local sortLikesBtn = smallBtn(-48, "📊", Color3.fromRGB(60, 90, 60))
-        local shuffleBtn   = smallBtn(-24, "🔀")
+        local viewBtn = W.button(panel, {
+            Size = UDim2.fromOffset(60, 20), Position = UDim2.new(1, -66, 0, 26),
+            BackgroundColor3 = VIEW_STYLE.top.color,
+            Text = VIEW_STYLE.top.text, TextSize = 9,
+        })
 
         -- ═══ LIST FRAME ═════════════════════════════════════════════
         local listFrame = W.mk("ScrollingFrame", {
@@ -139,7 +143,7 @@ return function(REN)
             end
         end)
         local reportDialog = REN.createReportDialog(panel, function()
-            return S.playlist[S.currentIndex]
+            return S.currentEntry or S.playlist[S.currentIndex]
         end)
 
         -- ═══ ROWS MANAGER ═══════════════════════════════════════════
@@ -147,7 +151,7 @@ return function(REN)
 
         -- ═══ UPDATE UI ══════════════════════════════════════════════
         local function updateUI()
-            local entry = S.playlist[S.currentIndex]
+            local entry = S.currentEntry or S.playlist[S.currentIndex]
             hTitle.Text = "🎵 Music (" .. #S.playlist .. ")"
             nowPlaying.Text = entry and entry.name or "-"
             playBtn.Text = S.musicPaused and "▶" or "⏸"
@@ -167,18 +171,16 @@ return function(REN)
         -- ═══ SEARCH FILTER EVENT ════════════════════════════════════
         searchBox:GetPropertyChangedSignal("Text"):Connect(rows.applyFilter)
 
-        -- ═══ SORT / SHUFFLE ═════════════════════════════════════════
-        local function markSort(likes)
-            sortLikesBtn.BackgroundColor3 = likes
-                and Color3.fromRGB(60, 90, 60) or Color3.fromRGB(35, 40, 55)
-            shuffleBtn.BackgroundColor3 = likes
-                and Color3.fromRGB(35, 40, 55) or Color3.fromRGB(60, 90, 60)
+        -- ═══ VIEW MODE (Top Likes / My Likes / Shuffle) ═══════════════
+        local function refreshViewBtn()
+            local st = VIEW_STYLE[S.viewMode] or VIEW_STYLE.top
+            viewBtn.Text = st.text
+            viewBtn.BackgroundColor3 = st.color
         end
-        sortLikesBtn.MouseButton1Click:Connect(function()
-            markSort(true); rows.applySort("likes"); updateUI()
-        end)
-        shuffleBtn.MouseButton1Click:Connect(function()
-            markSort(false); rows.applySort("shuffle"); updateUI()
+        viewBtn.MouseButton1Click:Connect(function()
+            PL.setView(PL.nextView())
+            rows.rebuildList(); refreshViewBtn(); updateUI()
+            A.saveState()
         end)
 
         -- ═══ DIALOG TRIGGERS ════════════════════════════════════════
@@ -219,6 +221,7 @@ return function(REN)
                 S.musicSound.Volume = S.musicVolume
             end
             updateUI()
+            A.saveState()
         end)
 
         -- ═══ DRAG / RESIZE ══════════════════════════════════════════
@@ -291,6 +294,7 @@ return function(REN)
 
         -- ═══ INITIAL BUILD ══════════════════════════════════════════
         rows.rebuildList()
+        refreshViewBtn()
         updateUI()
     end
 end
