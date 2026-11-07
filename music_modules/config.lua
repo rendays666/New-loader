@@ -8,8 +8,8 @@ return function(REN)
         MusicVolume     = 0.5,
         DefaultIconPos  = UDim2.new(0, 12, 0.5, -20),
         DefaultPanelPos = UDim2.new(0, 60, 0.5, -140),
-        DefaultSize     = Vector2.new(210, 280),
-        MinPanelSize    = Vector2.new(180, 230),
+        DefaultSize     = Vector2.new(260, 290),
+        MinPanelSize    = Vector2.new(240, 230),
         MaxPanelSize    = Vector2.new(450, 650),
         LoadTimeout     = 4,
         MaxFails        = 5,
@@ -19,6 +19,15 @@ return function(REN)
         },
         LikeWeight    = 10,
         DislikeWeight = 5,
+
+        -- Nama uploader untuk lagu yang berasal dari database (playlist.json),
+        -- bukan hasil upload lewat GUI.
+        DefaultUploader = "demonking6666667",
+
+        -- Save state (lagu terakhir, posisi, volume, mode list)
+        SaveFolder   = "RenrenHub",
+        SaveFile     = "RenrenHub/music_state.json",
+        SaveInterval = 3,   -- detik
     }
 
     REN.FallbackPlaylist = {
