@@ -3,7 +3,7 @@
 -- ============================================================
 local NOTIF = {
     header   = "RENREN Hub info",                          -- judul (header)
-    text     = "music gui is under construction, update to new version!!! please wait until update done,            -- isi notifikasi
+    text     = "music gui is under construction, update to new version!!! please wait until update done",            -- isi notifikasi
     color    = Color3.fromRGB(0, 220, 160),        -- warna aksen (hijau)
     duration = 3,                                  -- detik tampil
 }
