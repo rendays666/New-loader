@@ -5,6 +5,7 @@ return function(REN)
     local ContentProvider   = game:GetService("ContentProvider")
     local C = REN.Config
     local S = REN.State
+    local U = REN.Utils
 
     -- ── Validasi ────────────────────────────────────────────────────
     local function validateAudio(assetId)
@@ -103,18 +104,43 @@ return function(REN)
         end
     end
 
+    -- ── Save state ──────────────────────────────────────────────────
+    -- Snapshot lagu yang sedang diputar -> file (lewat REN.Persist).
+    -- Hanya menyimpan kalau lagu sudah loaded (positionReady), supaya posisi
+    -- 0 dari lagu yang baru dimuat tidak menimpa posisi yang tersimpan.
+    local function saveState()
+        local entry = S.currentEntry
+        if not entry or not REN.Persist then return end
+        if not S.positionReady or not S.musicSound or not S.musicSound.Parent then return end
+        local pos = S.musicSound.TimePosition
+        REN.Persist.save({
+            songId   = U.extractAssetId(entry.id),
+            songName = entry.name,
+            position = math.floor(pos * 10) / 10,
+            volume   = S.musicVolume,
+            viewMode = S.viewMode,
+        })
+    end
+
     -- ── Playback ────────────────────────────────────────────────────
-    local function playSongAt(idx, isAutoSkip)
+    -- startPos (opsional): posisi detik untuk resume lagu terakhir.
+    local function playSongAt(idx, isAutoSkip, startPos)
         if not S.musicSound or not S.musicSound.Parent then return end
+        if #S.playlist == 0 then return end
         if not isAutoSkip then S.consecutiveFails = 0 end
         S.currentIndex = ((idx - 1) % #S.playlist) + 1
         local entry = S.playlist[S.currentIndex]
         if not entry then return end
 
-        S.musicPaused = false
+        local resuming = type(startPos) == "number" and startPos > 1
+
+        S.currentEntry  = entry
+        S.positionReady = false
+        S.musicPaused   = false
         pcall(function() S.musicSound:Stop() end)
         S.musicSound.SoundId = entry.id
-        S.musicSound.Volume  = (S.musicState == 3) and 0 or S.musicVolume
+        -- saat resume: mute dulu sampai posisi di-seek, biar tidak ada "blip" awal lagu
+        S.musicSound.Volume  = (resuming or S.musicState == 3) and 0 or S.musicVolume
 
         preloadAsset(entry.id)
         local nxt = S.playlist[(S.currentIndex % #S.playlist) + 1]
@@ -141,10 +167,26 @@ return function(REN)
 
             if loaded then
                 S.consecutiveFails = 0
+
+                if resuming then
+                    local len = S.musicSound.TimeLength
+                    -- kalau tersimpan hampir di akhir lagu, mulai dari awal saja
+                    if len > 0 and startPos < len - 3 then
+                        pcall(function() S.musicSound.TimePosition = startPos end)
+                    end
+                    if S.musicState ~= 3 then S.musicSound.Volume = S.musicVolume end
+                end
+
+                S.positionReady = true
+                saveState()
+
                 if not S.musicPaused and not S.musicSound.IsPlaying then
                     pcall(function() S.musicSound:Play() end)
                 end
             else
+                if resuming and S.musicState ~= 3 then
+                    S.musicSound.Volume = S.musicVolume
+                end
                 S.consecutiveFails = S.consecutiveFails + 1
                 if S.consecutiveFails >= C.MaxFails then
                     S.consecutiveFails = 0; return
@@ -155,6 +197,42 @@ return function(REN)
                 end
             end
         end)
+    end
+
+    -- ── Resume lagu terakhir ────────────────────────────────────────
+    -- Return: index lagu di S.playlist + posisi (detik) untuk dilanjutkan.
+    local function resolveResume()
+        local saved = REN.Persist and REN.Persist.load()
+        if type(saved) ~= "table" then return 1, nil end
+        local PL = REN.Playlist
+
+        if type(saved.volume) == "number" then
+            S.musicVolume = math.clamp(saved.volume, 0, 1)
+        end
+
+        local mode = saved.viewMode
+        if mode == "mine" or mode == "shuffle" then
+            local n = PL.setView(mode)
+            if n == 0 then PL.setView("top") end   -- belum ada lagu yang di-like
+        end
+
+        local want = saved.songId and tostring(saved.songId)
+        if not want then return 1, nil end
+
+        local function find()
+            for i, e in ipairs(S.playlist) do
+                if U.extractAssetId(e.id) == want then return i end
+            end
+        end
+
+        local idx = find()
+        if not idx and S.viewMode ~= "top" then
+            -- lagu tidak ada di list ini (mis. sudah di-unlike) -> balik ke Top Likes
+            PL.setView("top")
+            idx = find()
+        end
+        if idx then return idx, tonumber(saved.position) end
+        return 1, nil   -- lagu sudah dihapus dari database
     end
 
     -- ── Init ────────────────────────────────────────────────────────
@@ -170,6 +248,9 @@ return function(REN)
             SoundService.__REN_Music:Destroy()
         end
 
+        -- harus sebelum sound dibuat: bisa mengubah volume & list aktif
+        local startIdx, startPos = resolveResume()
+
         S.musicSound = Instance.new("Sound")
         S.musicSound.Name   = "__REN_Music"
         S.musicSound.Volume = S.musicVolume
@@ -183,13 +264,24 @@ return function(REN)
         applyMusicState()
         SoundService.DescendantAdded:Connect(tryWatch)
         workspace.DescendantAdded:Connect(tryWatch)
-        playSongAt(1)
+
+        -- auto-save posisi lagu berkala (berhenti sendiri kalau sound di-destroy)
+        local mySound = S.musicSound
+        task.spawn(function()
+            while mySound.Parent do
+                task.wait(C.SaveInterval)
+                if S.musicSound == mySound then saveState() end
+            end
+        end)
+
+        playSongAt(startIdx, false, startPos)
     end
 
     REN.Audio = {
         validate        = validateAudio,
         preload         = preloadAsset,
         playSongAt      = playSongAt,
+        saveState       = saveState,
         init            = initMusic,
         applyMusicState = applyMusicState,
         getModeText = function()
