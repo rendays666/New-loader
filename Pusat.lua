@@ -27,7 +27,7 @@ genv.REN_LOADED = jobKey
 local CFG = {
     -- Webhook lama sudah bocor (repo GitHub publik). Hapus di Discord, buat baru, isi di sini.
     -- Kosong = error report ke Discord dimatikan.
-    Webhook   = "https://discord.com/api/webhooks/1564257126648512593/e3Xn_y8jduyENW6Vti7CBdinnqk8CTXixSliasOs3c8-OEqc45VKoGeIvIQ1-kGVliiH",
+    Webhook   = "https://discord.com/api/webhooks/1567772015421685772/iADRBntZYDHML7AO5wEUo_kI-uJN4Tz8UU1i8r7FGuqGQF1z4JqxhwbOhAw7ZjZ_Xbrk",
     -- Link yang dijalankan otomatis di server berikutnya (gist kamu, yang mengarah ke Pusat.lua).
     -- Pusat.lua di GitHub HARUS berisi file loader ini (v1.2), kalau tidak yang jalan versi lama.
     LoaderURL = "https://gist.githubusercontent.com/rendays666/777a76b2701737e6692ed88631aa4768/raw/renrenhub-loader.lua",
