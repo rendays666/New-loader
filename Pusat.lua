@@ -33,7 +33,7 @@ local CFG = {
     LoaderURL = "https://gist.githubusercontent.com/rendays666/777a76b2701737e6692ed88631aa4768/raw/renrenhub-loader.lua",
     Steps = {
         { name = "Tracker", url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/Database%20supabase" },
-        { name = "Music",   url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/notifmaintance.lua" },
+        { name = "Music",   url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/music.lua" },
         { name = "Browser", url = "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/Scriptbrowser-loader" },
     },
 }
