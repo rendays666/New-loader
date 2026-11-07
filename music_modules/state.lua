@@ -23,7 +23,9 @@ return function(REN)
         -- Audio playback
         musicSound        = nil,
         musicState        = resolveInitialMode(),
-        currentIndex      = 1,
+        currentIndex      = 1,      -- posisi di S.playlist (0 = lagu aktif tidak ada di list)
+        currentEntry      = nil,    -- entry lagu yang benar-benar sedang diputar
+        positionReady     = false,  -- true setelah lagu loaded (aman untuk save posisi)
         musicVolume       = REN.Config.MusicVolume,
         musicPaused       = false,
         currentPlayToken  = 0,
@@ -34,7 +36,9 @@ return function(REN)
         mutedState   = { value = true },
 
         -- Playlist (diisi oleh modul playlist)
-        playlist     = {},
+        allSongs     = {},     -- semua lagu (master)
+        playlist     = {},     -- list aktif sesuai viewMode (top / mine / shuffle)
+        viewMode     = "top",
         existingIds  = {},
         preloadCache = {},
 
