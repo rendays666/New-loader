@@ -33,6 +33,26 @@ return function(REN)
         return tostring(id):match("%d+") or "0"
     end
 
+    -- Nama uploader: lagu database (playlist.json) -> DefaultUploader,
+    -- lagu upload dari GUI -> nama player yang upload.
+    function U.uploaderOf(entry)
+        if entry.isSubmission then
+            local n = entry.submittedByName
+            if type(n) == "string" and n ~= "" then return n end
+            return "unknown"
+        end
+        return C.DefaultUploader or "unknown"
+    end
+
+    -- Salin teks ke clipboard. Return true kalau executor mendukung.
+    function U.copyText(text)
+        local fn = setclipboard or toclipboard or writeclipboard
+            or (Clipboard and Clipboard.set)
+        if type(fn) ~= "function" then return false end
+        local ok = pcall(fn, tostring(text))
+        return ok
+    end
+
     function U.shuffleList(list)
         for i = #list, 2, -1 do
             local j = math.random(i)
