@@ -3,6 +3,22 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/rendays666/New-loader
 
 
 ==============================================================
+CATATAN v14 (MODULAR) — BACA DULU KALAU MAU DEBUG
+==============================================================
+Dumper sekarang modular: dumper.lua = loader kecil, kode ada di
+script-maker/modules/*.lua (tiap file < 250 baris).
+Peta module + panduan "gejala -> file" ada di ARCHITECTURE.md.
+File SMART/FULL selalu punya bagian DIAGNOSTICS di akhir
+(status hook, counter capture, error + traceback, log terakhir).
+
+FIX UTAMA: chip HK dulu bikin GUI game tidak bisa diklik karena
+hook __namecall memanggil method Instance (GetFullName dkk) di
+dalam hook. Sekarang hook hanya memasukkan data ke antrean; log
+dikerjakan terpisah di Heartbeat. Chip UC kini memakai
+hookfunction (bukan patch metatable global).
+
+
+==============================================================
 KONTEKS: SCRIPT DUMPER v12 — ROBLOX
 ==============================================================
 
