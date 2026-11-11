@@ -44,8 +44,9 @@ return function(D)
 
         -- flag runtime (chip UI / HK / UC / tombol RUN)
         uiActive      = false,
-        hkActive      = false,
-        ucActive      = false,
+        hkActive      = false,  -- HK  : hook __namecall
+        hk2Active     = false,  -- HK2 : hookfunction FireServer/InvokeServer
+        ucActive      = false,  -- UC  : alias HK2 (kompatibilitas)
         passiveActive = false,
 
         -- koneksi umur panjang (diputus oleh D.Shutdown)
@@ -62,7 +63,7 @@ return function(D)
     -- (flag hook dimatikan, koneksi diputus, GUI dihapus) supaya tidak ada capture ganda.
     function D.Shutdown()
         local S = D.State
-        S.hkActive, S.ucActive, S.uiActive, S.scanAbort = false, false, false, true
+        S.hkActive, S.hk2Active, S.ucActive, S.uiActive, S.scanAbort = false, false, false, false, true
         for _, c in ipairs(S.conns) do pcall(function() c:Disconnect() end) end
         S.conns = {}
         if D.Passive then pcall(D.Passive.stop) end

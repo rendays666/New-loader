@@ -17,7 +17,7 @@ return function(D)
 
     local C = {}
     D.Capture = C
-    C.stats = { enqueued = 0, dropped = 0, logged = 0, deduped = 0, errors = 0 }
+    C.stats = { enqueued = 0, dropped = 0, logged = 0, deduped = 0, errors = 0, bySource = {} }
 
     local queue, qHead, qTail = {}, 1, 0
     local last = { remote = nil, method = nil, time = 0 }
@@ -30,13 +30,14 @@ return function(D)
     end
 
     -- DIPANGGIL DARI DALAM HOOK — jaga tetap minimal, jangan panggil method Instance di sini.
-    function C.enqueue(remote, method, args)
+    -- via = sumber hook: "HK" | "HK2" | "UC" (kosong = "HK", untuk hook versi lama)
+    function C.enqueue(remote, method, args, via)
         if qTail - qHead + 1 >= Cfg.FS.MAX_PENDING then
             C.stats.dropped = C.stats.dropped + 1
             return
         end
         qTail = qTail + 1
-        queue[qTail] = { remote, method, args, os.clock() }
+        queue[qTail] = { remote, method, args, os.clock(), via or "HK" }
         C.stats.enqueued = C.stats.enqueued + 1
     end
 
@@ -69,7 +70,7 @@ return function(D)
     end
 
     local function process(item)
-        local remote, method, args, t = item[1], item[2], item[3], item[4]
+        local remote, method, args, t, via = item[1], item[2], item[3], item[4], item[5]
         if typeof(remote) ~= "Instance" then return end
 
         if last.remote == remote and last.method == method and (t - last.time) < Cfg.FS.DEDUP_SEC then
@@ -90,12 +91,14 @@ return function(D)
             remote = D.Util.safeFullName(remote),
             class  = okC and class or "?",
             method = method,
+            via    = via,
             args   = parts,
         }
         if #list > Cfg.FS.MAX_ENTRIES then table.remove(list, 1) end
         C.stats.logged = C.stats.logged + 1
+        C.stats.bySource[via] = (C.stats.bySource[via] or 0) + 1
 
-        D.Log.write(("🔥 %s %s(%s)"):format(method, okN and rname or "?", table.concat(parts, ", ")),
+        D.Log.write(("🔥 [%s] %s %s(%s)"):format(via, method, okN and rname or "?", table.concat(parts, ", ")),
             Cfg.COLOR.busy, "fs")
     end
 

@@ -57,8 +57,8 @@ return function(D)
     end
 
     -- ── Toggle chips ────────────────────────────────────────────────
-    local function mkToggle(abbr, order, isOn, onToggle)
-        local chip = mkChip(abbr, 22, order, isOn)
+    local function mkToggle(abbr, order, isOn, onToggle, width)
+        local chip = mkChip(abbr, width or 22, order, isOn)
         chip.MouseButton1Click:Connect(D.Log.wrap("ui:chip:" .. abbr, function()
             onToggle()
             chip.BackgroundColor3 = isOn() and COLOR.on or COLOR.off
@@ -89,25 +89,48 @@ return function(D)
         S.hkActive = not S.hkActive
         if not S.hkActive then D.Capture.flush() end
         D.Log.write("[HK] " .. (S.hkActive and "✓ aktif" or "✗ mati"), Color3.fromRGB(200, 200, 255), "hk")
+        if S.hkActive and (S.hk2Active or S.ucActive) then
+            D.Log.write("[HK] HK ON → HK2/UC diam (HK prioritas, hindari catatan ganda)", COLOR.warn, "hk")
+        end
     end)
 
-    mkToggle("UC", 202, function() return S.ucActive end, function()
+    -- HK2: hookfunction langsung (cara beda dari HK). Aktif mencatat hanya kalau HK mati.
+    mkToggle("HK2", 202, function() return S.hk2Active end, function()
+        if not S.hk2Active then
+            if not D.Hook.installHK2() then
+                D.Log.write("[HK2] ✗ " .. tostring(D.Hook.lastError), COLOR.err, "hk2")
+                return
+            end
+            D.Capture.start()
+            if D.Hook.lastError then
+                D.Log.write("[HK2] ⚠ " .. D.Hook.lastError, COLOR.warn, "hk2")
+            end
+        end
+        S.hk2Active = not S.hk2Active
+        if not S.hk2Active then D.Capture.flush() end
+        D.Log.write("[HK2] " .. (S.hk2Active and "✓ aktif" or "✗ mati"), Color3.fromRGB(200, 200, 255), "hk2")
+        if S.hk2Active and S.hkActive then
+            D.Log.write("[HK2] HK masih ON → HK2 diam. Matikan HK untuk memakai HK2.", COLOR.warn, "hk2")
+        end
+    end, 28)
+
+    -- UC: alias HK2 (hook fungsi yang sama) — dipertahankan untuk kompatibilitas
+    mkToggle("UC", 203, function() return S.ucActive end, function()
         S.ucActive = not S.ucActive
         if S.ucActive then
             D.Capture.start()
-            local ok = D.Hook.patchUC()
-            if not ok then
+            if not D.Hook.patchUC() then
                 S.ucActive = false
-                D.Log.write("[UC] ✗ patch gagal: " .. tostring(D.Hook.lastError), COLOR.err, "uc")
+                D.Log.write("[UC] ✗ gagal: " .. tostring(D.Hook.lastError), COLOR.err, "uc")
             else
-                D.Log.write("[UC] ✓ aktif (hanya mencatat kalau HK mati)", Color3.fromRGB(200, 200, 255), "uc")
+                D.Log.write("[UC] ✓ aktif (alias HK2; diam kalau HK ON)", Color3.fromRGB(200, 200, 255), "uc")
             end
         else
             D.Log.write("[UC] ✗ mati", COLOR.dim, "uc")
         end
     end)
 
-    mkToggle("RT", 203, function() return false end, function()
+    mkToggle("RT", 204, function() return false end, function()
         S.runtimeCapture.fireServer = {}
         S.runtimeCapture.ui = {}
         S.runtimeCapture.log = {}

@@ -17,7 +17,7 @@ return function(D)
             out[#out + 1] = ""
             out[#out + 1] = "⚠ Tidak ada runtime capture."
             out[#out + 1] = "  Untuk UI  : aktifkan chip UI → buka menu"
-            out[#out + 1] = "  Untuk FS  : aktifkan chip HK → lakukan aksi sekali"
+            out[#out + 1] = "  Untuk FS  : aktifkan chip HK (atau HK2) → lakukan aksi sekali"
         end
 
         if #rc.ui > 0 then
@@ -36,7 +36,8 @@ return function(D)
             out[#out + 1] = ("## FireServer/InvokeServer — %d call"):format(#rc.fireServer)
             out[#out + 1] = "  Format: [n] Method Remote(args) — arg tipe+isi"
             for i, e in ipairs(rc.fireServer) do
-                out[#out + 1] = ("[%d] %s %s(%s)"):format(i, e.method, e.remote, table.concat(e.args, ", "))
+                out[#out + 1] = ("[%d] [%s] %s %s(%s)"):format(i, e.via or "HK", e.method, e.remote,
+                    table.concat(e.args, ", "))
             end
             out[#out + 1] = ""
             out[#out + 1] = "  💡 Analisis: argumen Vector3/CFrame = posisi/arah, string = nama aksi/item."
@@ -69,18 +70,27 @@ return function(D)
 
         add("")
         add("## Hook / capture")
-        add(("  chip HK=%s UC=%s UI=%s RUN=%s"):format(
-            tostring(S.hkActive), tostring(S.ucActive), tostring(S.uiActive), tostring(S.passiveActive)))
+        add(("  chip HK=%s HK2=%s UC=%s UI=%s RUN=%s"):format(
+            tostring(S.hkActive), tostring(S.hk2Active), tostring(S.ucActive),
+            tostring(S.uiActive), tostring(S.passiveActive)))
         local hs = D.Hook and D.Hook.status() or {}
-        add(("  namecall hook terpasang : %s"):format(tostring(hs.namecallInstalled)))
-        add(("  UC hookfunction class   : %s"):format(
-            (hs.ucClasses and #hs.ucClasses > 0) and table.concat(hs.ucClasses, ", ") or "-"))
+        add(("  HK  namecall hook terpasang      : %s"):format(tostring(hs.namecallInstalled)))
+        add(("  HK2/UC hookfunction class terpasang: %s"):format(
+            (hs.fnClasses and #hs.fnClasses > 0) and table.concat(hs.fnClasses, ", ") or "-"))
+        if hs.fnFailed and #hs.fnFailed > 0 then
+            add("  HK2/UC class gagal (percobaan terakhir): " .. table.concat(hs.fnFailed, " | "))
+        end
         add(("  hook lastError          : %s"):format(tostring(hs.lastError)))
+        add("  (HK prioritas: HK ON → HK2/UC tidak mencatat)")
         if D.Capture then
             local st = D.Capture.stats
             add(("  antrean pending         : %d"):format(D.Capture.pending()))
             add(("  enqueued=%d logged=%d deduped=%d dropped=%d errors=%d"):format(
                 st.enqueued, st.logged, st.deduped, st.dropped, st.errors))
+            local src = {}
+            for k, v in pairs(st.bySource) do src[#src + 1] = k .. "=" .. v end
+            table.sort(src)
+            add("  logged per sumber       : " .. (#src > 0 and table.concat(src, " ") or "-"))
             add("  (enqueued>0 tapi logged=0 → bug di D.Capture / drain. enqueued=0 → hook tidak menangkap.)")
         end
 

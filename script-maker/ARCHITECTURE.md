@@ -25,7 +25,7 @@ Module hanya boleh memakai `D.*` dari module yang **di atasnya** di urutan load.
 | `util` | `D.Util` | Fungsi murni: baca source, parsing baris, nama game, capability executor |
 | `output` | `D.Output` | `copyText`, `saveToFile` |
 | `runtime/capture` | `D.Capture` | Antrean + pencatat FireServer/InvokeServer (kerja berat di Heartbeat) |
-| `runtime/hook` | `D.Hook` | Pasang hook HK (`__namecall`) dan UC (`hookfunction`) |
+| `runtime/hook` | `D.Hook` | Pasang hook HK (`__namecall`) dan HK2/UC (`hookfunction`; UC = alias HK2) |
 | `runtime/ui_watch` | `D.UIWatch` | Chip UI: rekam tombol di PlayerGui |
 | `runtime/passive` | `D.Passive` | Tombol RUN: LogService + OnClientEvent |
 | `scanner` | `D.Scanner` | Tombol SCAN: baca `.Source` |
@@ -47,7 +47,8 @@ Module hanya boleh memakai `D.*` dari module yang **di atasnya** di urutan load.
 | Gejala | Buka |
 |---|---|
 | GUI **game** tidak bisa diklik / remote game rusak saat HK ON | `runtime/hook` (aturan hook) lalu `runtime/capture` |
-| HK ON tapi `Runtime FS` kosong | `DIAGNOSTICS` → `enqueued`/`logged`; lalu `runtime/hook` |
+| HK ON tapi `Runtime FS` kosong | Coba chip HK2 (mekanisme beda); `DIAGNOSTICS` → `enqueued`/`logged`/`logged per sumber`; lalu `runtime/hook` |
+| HK2 ON tapi tidak mencatat | Pastikan HK OFF (HK prioritas); `DIAGNOSTICS` → `HK2/UC class terpasang`, `lastError` |
 | Tombol UI dumper tidak merespons | `ui/buttons` (handler), `ui/frame` |
 | Scan macet / "Scan running..." | `scanner` (flag direset di `Scanner.run`) |
 | Hasil scan salah status (obf/readable) | `scanner` (`looksObfuscated`), `util.readSource` |
@@ -68,6 +69,7 @@ Cara membaca counter capture:
 
 ## Aturan keras (jangan dilanggar saat edit)
 
+0. **HK vs HK2:** HK = `__namecall`; HK2 = `hookfunction` pada method C. Keduanya hanya mencatat lewat `box.push`. Kalau HK ON maka HK2/UC diam (cegah catatan ganda). HK2 dan UC memakai hook fungsi yang SAMA (`box.fn`) — jangan memasang `hookfunction` kedua pada fungsi yang sama.
 1. **Hook `__namecall` (`runtime/hook`) dilarang memanggil method Instance** (`x:GetFullName()`, `x:IsA()`, dst.) — itu me-reset namecall method dan merusak panggilan asli game (akar bug lama: GUI game mati saat HK ON). Di hook hanya boleh: `getnamecallmethod`, `table.pack`, `typeof`, `pcall(push, ...)`, lalu `setnamecallmethod(method)` sebelum `old(self, ...)`. Semua kerja berat → `runtime/capture` (Heartbeat).
 2. **Jangan simpan referensi** `D.State.allScripts` / `D.State.runtimeCapture.*` di variabel lokal level module — tabelnya diganti ulang oleh SCAN/CLR/RT. Akses lewat `D.State.<nama>` saat dipakai.
 3. Semua handler event GUI dibungkus `D.Log.wrap(tag, fn)`; kode async memakai `D.Log.safe(tag, fn)`. Jangan `pcall` kosong yang menelan error.

@@ -17,6 +17,11 @@ dalam hook. Sekarang hook hanya memasukkan data ke antrean; log
 dikerjakan terpisah di Heartbeat. Chip UC kini memakai
 hookfunction (bukan patch metatable global).
 
+CHIP HK2 (baru): hook langsung pada FireServer/InvokeServer
+(hookfunction), cara kerja BEDA dari HK (__namecall). Pakai HK2 kalau
+HK tidak menangkap apa-apa atau bermasalah di game tertentu. HK ON =
+HK2/UC diam supaya tidak ada catatan ganda. UC sekarang alias HK2.
+
 
 ==============================================================
 KONTEKS: SCRIPT DUMPER v12 — ROBLOX

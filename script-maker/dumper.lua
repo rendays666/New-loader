@@ -8,7 +8,7 @@
   Error load/compile/runtime module hanya lewat warn() di console + bagian DIAGNOSTICS di file SMART/FULL.
 ]]
 
-local SCRIPT_VERSION = "14.0.0"
+local SCRIPT_VERSION = "14.1.0"
 
 local BASE_URLS = {
     "https://raw.githubusercontent.com/rendays666/New-loader/main/script-maker/modules/",
