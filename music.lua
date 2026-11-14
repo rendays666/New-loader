@@ -1,10 +1,10 @@
 --[[
-  RENRENHUB — MUSIC LOADER v3.9.0
+  RENRENHUB — MUSIC LOADER v3.9.1
   Entry point. URL TIDAK berubah.
   (Loading GUI & log panel sudah dihapus — error hanya di console via warn.)
 ]]
 
-local SCRIPT_VERSION = "3.9.0"
+local SCRIPT_VERSION = "3.9.1"
 
 local BASE_URLS = {
     "https://raw.githubusercontent.com/rendays666/New-loader/main/music_modules/",
@@ -119,6 +119,8 @@ end
 
 -- ═══ MAIN ═════════════════════════════════════════════════════════
 local function main()
+    -- Penanda: kalau baris ini tidak muncul di console, script ini tidak jalan sama sekali.
+    pcall(print, "[Music] Loader v" .. SCRIPT_VERSION .. " mulai...")
     local player, pg = waitForPlayer(30)
     if not player or not pg then
         fail("LocalPlayer/PlayerGui tidak tersedia setelah 30 detik")
