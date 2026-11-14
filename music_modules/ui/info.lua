@@ -27,11 +27,10 @@ return function(REN)
         Body = [[
 <b>RenrenHub Music</b>
 
-• Tekan lagu di list untuk memutar.
-• Tombol Upload Song untuk menambah lagu baru.
-• Tombol 🚩 untuk melaporkan lagu bermasalah.
-
-Ganti teks ini lewat CONFIG.Body di music_modules/ui/info.lua.]],
+• Tap a song in the list to play it.
+• Upload Song button to add a new song.
+• 🚩 button to report a problematic song..
+,
         BodyColor    = Color3.fromRGB(210, 215, 230),
         BodyTextSize = 10,
         RichText     = true,
