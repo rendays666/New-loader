@@ -1,4 +1,4 @@
---[[ UI INFO — tombol (i) di header + dialog Informasi
+--[==[ UI INFO — tombol (i) di header + dialog Informasi
 
   KUSTOMISASI: edit blok CONFIG di bawah saja, file lain tidak perlu disentuh.
     - Icon / IconColor / IconBg  : tampilan tombol (i) di header
@@ -10,9 +10,10 @@
                                    urutan bebas — lebar tombol dibagi otomatis.
                                    `Value` = teks yang disalin ke clipboard.
 
-  CATATAN SINTAKS: teks multi-baris WAJIB pakai [[ ... ]] (atau [==[ ... ]==]),
-  bukan tanda kutip '...' / "...", dan harus ditutup sebelum tanda koma.
-]]
+  CATATAN SINTAKS: teks multi-baris WAJIB memakai long string (kurung siku
+  ganda, lihat contoh Body di bawah), bukan tanda kutip biasa, dan harus
+  ditutup sebelum tanda koma.
+]==]
 
 return function(REN)
     local W = REN.Widgets

@@ -4,8 +4,13 @@ return function(REN)
     REN.Audio.init()
     REN.createMusicUI()
 
-    print(string.format(
-        "[Music] READY v%s | Playlist: %d | Mode: %d | PlaceId: %d",
+    local msg = string.format(
+        "READY v%s | Playlist: %d | Mode: %d | PlaceId: %d",
         REN.version, #REN.State.playlist, REN.State.musicState, game.PlaceId
-    ))
+    )
+    if REN.Log then
+        REN.Log.add("ok", msg)
+    else
+        print("[Music] " .. msg)
+    end
 end

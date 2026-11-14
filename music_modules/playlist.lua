@@ -8,9 +8,18 @@ return function(REN)
     local FB = REN.Firebase
     local S  = REN.State
 
-    -- Fallback tidak lagi diam-diam: alasannya dicetak ke console.
+    -- Pesan masuk ke panel log loader (REN.Log); kalau tidak ada, ke console.
+    local function logLine(level, msg)
+        if REN.Log then
+            REN.Log.add(level, msg)
+        else
+            pcall(level == "warn" and warn or print, "[Music] " .. msg)
+        end
+    end
+
+    -- Fallback tidak diam-diam: alasannya dicatat sebagai warning.
     local function useFallback(reason)
-        pcall(warn, "[Music] Playlist FALLBACK (" .. reason .. ") | URL = " .. tostring(C.PlaylistURL))
+        logLine("warn", "Playlist FALLBACK (" .. reason .. ") | URL = " .. tostring(C.PlaylistURL))
         return REN.FallbackPlaylist
     end
 
@@ -34,7 +43,7 @@ return function(REN)
             end
         end
         if #clean == 0 then return useFallback("0 entri valid di playlist.json") end
-        pcall(print, "[Music] Playlist OK: " .. #clean .. " lagu dari playlist.json")
+        logLine("ok", "Playlist OK: " .. #clean .. " lagu dari playlist.json")
         return clean
     end
 
