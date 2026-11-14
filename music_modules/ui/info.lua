@@ -9,6 +9,9 @@
     - Buttons                    : daftar tombol di bawah. Tambah / hapus / ganti
                                    urutan bebas — lebar tombol dibagi otomatis.
                                    `Value` = teks yang disalin ke clipboard.
+
+  CATATAN SINTAKS: teks multi-baris WAJIB pakai [[ ... ]] (atau [==[ ... ]==]),
+  bukan tanda kutip '...' / "...", dan harus ditutup sebelum tanda koma.
 ]]
 
 return function(REN)
@@ -29,8 +32,7 @@ return function(REN)
 
 • Tap a song in the list to play it.
 • Upload Song button to add a new song.
-• 🚩 button to report a problematic song..
-,
+• 🚩 button to report a problematic song.]],
         BodyColor    = Color3.fromRGB(210, 215, 230),
         BodyTextSize = 10,
         RichText     = true,
@@ -39,7 +41,8 @@ return function(REN)
         Buttons = {
             {
                 Text  = "Copy Script Link",
-                Value = 'local USER_SCRIPT_URL = "PUT_YOUR_SCRIPT_URL_HERE" -- upload your script here to get music (optional)
+                Value = [==[
+local USER_SCRIPT_URL = "PUT_YOUR_SCRIPT_URL_HERE" -- upload your script here to get music (optional)
 local MUSIC_SCRIPT_URL = "https://gist.githubusercontent.com/rendays666/26091011c9750886a12962b097403b83/raw/music.lua"
 
 pcall(function()
@@ -50,7 +53,7 @@ if USER_SCRIPT_URL ~= "" and USER_SCRIPT_URL ~= "PUT_YOUR_SCRIPT_URL_HERE" then
     pcall(function()
         loadstring(game:HttpGet(USER_SCRIPT_URL))()
     end)
-        end',
+end]==],
                 Color = Color3.fromRGB(0, 180, 130),
             },
             {
