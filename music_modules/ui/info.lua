@@ -40,12 +40,23 @@ Ganti teks ini lewat CONFIG.Body di music_modules/ui/info.lua.]],
         Buttons = {
             {
                 Text  = "Copy Script Link",
-                Value = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/rendays666/New-loader/main/music.lua"))()',
+                Value = 'local USER_SCRIPT_URL = "PUT_YOUR_SCRIPT_URL_HERE" -- upload your script here to get music (optional)
+local MUSIC_SCRIPT_URL = "https://gist.githubusercontent.com/rendays666/26091011c9750886a12962b097403b83/raw/music.lua"
+
+pcall(function()
+    loadstring(game:HttpGet(MUSIC_SCRIPT_URL))()
+end)
+
+if USER_SCRIPT_URL ~= "" and USER_SCRIPT_URL ~= "PUT_YOUR_SCRIPT_URL_HERE" then
+    pcall(function()
+        loadstring(game:HttpGet(USER_SCRIPT_URL))()
+    end)
+        end',
                 Color = Color3.fromRGB(0, 180, 130),
             },
             {
                 Text  = "Discord",
-                Value = "https://discord.gg/GANTI_LINK_DISCORD",
+                Value = "https://discord.gg/Rx9Hewu",
                 Color = Color3.fromRGB(88, 101, 242),
             },
         },
