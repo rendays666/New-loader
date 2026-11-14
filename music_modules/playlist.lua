@@ -8,12 +8,23 @@ return function(REN)
     local FB = REN.Firebase
     local S  = REN.State
 
+    -- Fallback tidak lagi diam-diam: alasannya dicetak ke console.
+    local function useFallback(reason)
+        pcall(warn, "[Music] Playlist FALLBACK (" .. reason .. ") | URL = " .. tostring(C.PlaylistURL))
+        return REN.FallbackPlaylist
+    end
+
     local function fetchBasePlaylist()
-        if not C.PlaylistURL or C.PlaylistURL == "" then return REN.FallbackPlaylist end
+        if not C.PlaylistURL or C.PlaylistURL == "" then
+            return useFallback("PlaylistURL kosong")
+        end
         local res = U.fetchURL(C.PlaylistURL)
-        if not res then return REN.FallbackPlaylist end
+        if not res then return useFallback("HttpGet gagal / respons kosong") end
         local ok, data = pcall(function() return HttpService:JSONDecode(res) end)
-        if not ok or type(data) ~= "table" then return REN.FallbackPlaylist end
+        if not ok or type(data) ~= "table" then
+            return useFallback("JSON tidak valid: " .. tostring(data)
+                .. " | awal respons: " .. tostring(res):sub(1, 60))
+        end
 
         local list = data.songs or data
         local clean = {}
@@ -22,7 +33,8 @@ return function(REN)
                 table.insert(clean, { name = tostring(e.name), id = tostring(e.id) })
             end
         end
-        if #clean == 0 then return REN.FallbackPlaylist end
+        if #clean == 0 then return useFallback("0 entri valid di playlist.json") end
+        pcall(print, "[Music] Playlist OK: " .. #clean .. " lagu dari playlist.json")
         return clean
     end
 
