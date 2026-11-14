@@ -11,7 +11,7 @@ local SCRIPT_VERSION = "3.10.0"
 
 -- ═══ CONFIG LOG (EDIT DI SINI) ═════════════════════════════════════
 local CONFIG = {
-    LOG_REALTIME      = true,  -- true  = panel log tampil selama loading
+    LOG_REALTIME      = false,  -- true  = panel log tampil selama loading
                                -- false = panel tidak tampil (console tetap jalan)
     LOG_AUTOHIDE      = true,  -- true  = panel hilang sendiri kalau semua modul sukses
                                --         tanpa warning/error
