@@ -1,10 +1,10 @@
 --[[
-  RENRENHUB — MUSIC LOADER v3.9.1
+  RENRENHUB — MUSIC LOADER v3.9.2
   Entry point. URL TIDAK berubah.
   (Loading GUI & log panel sudah dihapus — error hanya di console via warn.)
 ]]
 
-local SCRIPT_VERSION = "3.9.1"
+local SCRIPT_VERSION = "3.9.2"
 
 local BASE_URLS = {
     "https://raw.githubusercontent.com/rendays666/New-loader/main/music_modules/",
