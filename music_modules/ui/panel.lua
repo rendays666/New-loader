@@ -68,12 +68,16 @@ return function(REN)
         })
 
         -- Tombol info (i): di kiri modeBtn. Tampilan diatur di ui/info.lua (CONFIG)
+        -- Opsional: kalau modul ui/info tidak termuat, musik tetap jalan tanpa tombol ini.
         local IC = REN.InfoConfig
-        local infoBtn = W.button(header, {
-            Size = UDim2.fromOffset(16, 16), Position = UDim2.new(1, -60, 0, 4),
-            BackgroundColor3 = IC.IconBg, Text = IC.Icon,
-            TextColor3 = IC.IconColor, TextSize = 11,
-        }, 8)
+        local infoBtn = nil
+        if IC and REN.createInfoDialog then
+            infoBtn = W.button(header, {
+                Size = UDim2.fromOffset(16, 16), Position = UDim2.new(1, -60, 0, 4),
+                BackgroundColor3 = IC.IconBg, Text = IC.Icon,
+                TextColor3 = IC.IconColor, TextSize = 11,
+            }, 8)
+        end
 
         -- ═══ SEARCH + SMALL BUTTONS ═════════════════════════════════
         local searchBox = W.input(panel, {
@@ -153,7 +157,16 @@ return function(REN)
         local reportDialog = REN.createReportDialog(panel, function()
             return S.currentEntry or S.playlist[S.currentIndex]
         end)
-        local infoDialog = REN.createInfoDialog(panel)
+        local noop = function() end
+        local infoDialog = {show = noop, hide = noop, toggle = noop}
+        if infoBtn then
+            local okInfo, dlg = pcall(REN.createInfoDialog, panel)
+            if okInfo and dlg then
+                infoDialog = dlg
+            else
+                pcall(warn, "[Music] Info dialog gagal: " .. tostring(dlg))
+            end
+        end
 
         -- ═══ ROWS MANAGER ═══════════════════════════════════════════
         local rows = REN.createRows(listFrame, searchBox)
@@ -199,9 +212,11 @@ return function(REN)
         reportBtn.MouseButton1Click:Connect(function()
             reportDialog.show(); uploadDialog.hide(); infoDialog.hide()
         end)
-        infoBtn.MouseButton1Click:Connect(function()
-            uploadDialog.hide(); reportDialog.hide(); infoDialog.toggle()
-        end)
+        if infoBtn then
+            infoBtn.MouseButton1Click:Connect(function()
+                uploadDialog.hide(); reportDialog.hide(); infoDialog.toggle()
+            end)
+        end
 
         -- ═══ CONTROLS EVENTS ════════════════════════════════════════
         prevBtn.MouseButton1Click:Connect(function()
