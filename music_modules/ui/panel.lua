@@ -56,7 +56,7 @@ return function(REN)
         })
 
         local hTitle = W.label(header, {
-            Size = UDim2.new(1, -108, 1, 0), Position = UDim2.fromOffset(66, 0),
+            Size = UDim2.new(1, -132, 1, 0), Position = UDim2.fromOffset(66, 0),
             TextColor3 = W.GREEN, Font = Enum.Font.GothamBold, TextSize = 10,
             TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Center,
@@ -66,6 +66,14 @@ return function(REN)
             Size = UDim2.fromOffset(36, 16), Position = UDim2.new(1, -40, 0, 4),
             BackgroundColor3 = A.getModeColor(), Text = A.getModeText(), TextSize = 10,
         })
+
+        -- Tombol info (i): di kiri modeBtn. Tampilan diatur di ui/info.lua (CONFIG)
+        local IC = REN.InfoConfig
+        local infoBtn = W.button(header, {
+            Size = UDim2.fromOffset(16, 16), Position = UDim2.new(1, -60, 0, 4),
+            BackgroundColor3 = IC.IconBg, Text = IC.Icon,
+            TextColor3 = IC.IconColor, TextSize = 11,
+        }, 8)
 
         -- ═══ SEARCH + SMALL BUTTONS ═════════════════════════════════
         local searchBox = W.input(panel, {
@@ -145,6 +153,7 @@ return function(REN)
         local reportDialog = REN.createReportDialog(panel, function()
             return S.currentEntry or S.playlist[S.currentIndex]
         end)
+        local infoDialog = REN.createInfoDialog(panel)
 
         -- ═══ ROWS MANAGER ═══════════════════════════════════════════
         local rows = REN.createRows(listFrame, searchBox)
@@ -185,10 +194,13 @@ return function(REN)
 
         -- ═══ DIALOG TRIGGERS ════════════════════════════════════════
         uploadBtn.MouseButton1Click:Connect(function()
-            uploadDialog.show(); reportDialog.hide()
+            uploadDialog.show(); reportDialog.hide(); infoDialog.hide()
         end)
         reportBtn.MouseButton1Click:Connect(function()
-            reportDialog.show(); uploadDialog.hide()
+            reportDialog.show(); uploadDialog.hide(); infoDialog.hide()
+        end)
+        infoBtn.MouseButton1Click:Connect(function()
+            uploadDialog.hide(); reportDialog.hide(); infoDialog.toggle()
         end)
 
         -- ═══ CONTROLS EVENTS ════════════════════════════════════════
@@ -282,7 +294,7 @@ return function(REN)
             if drag == "icon" and not iconMoved then
                 panel.Visible = not panel.Visible
                 if panel.Visible then
-                    uploadDialog.hide(); reportDialog.hide()
+                    uploadDialog.hide(); reportDialog.hide(); infoDialog.hide()
                     updateUI()
                 end
                 icon.BackgroundColor3 = panel.Visible
