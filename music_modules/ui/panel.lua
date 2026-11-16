@@ -6,13 +6,26 @@ return function(REN)
     local C = REN.Config
     local A = REN.Audio
     local PL = REN.Playlist
+    local U = REN.Utils
+    local R = REN.Ratings
 
-    -- Satu tombol, tiga mode: Top Likes -> My Likes -> Shuffle -> (ulang)
+    -- Satu tombol, empat mode: Top Likes -> My Likes -> Shuffle -> By Update -> (ulang)
+    -- Urutan siklus diatur di PL.VIEW_ORDER (music_modules/playlist.lua).
     local VIEW_STYLE = {
         top     = { text = "Top Likes", color = Color3.fromRGB(60, 90, 60)  },
         mine    = { text = "My Likes",  color = Color3.fromRGB(125, 55, 80) },
         shuffle = { text = "Shuffle",   color = Color3.fromRGB(50, 80, 125) },
+        update  = { text = "By Update", color = Color3.fromRGB(135, 105, 40) },
     }
+
+    -- Now Playing: warna tombol rating & chip ID
+    local DIM_COLOR  = Color3.fromRGB(160, 160, 180)
+    local LIKE_ON    = Color3.fromRGB(255, 90, 90)
+    local DISLIKE_ON = Color3.fromRGB(90, 140, 255)
+    local ID_COLOR   = Color3.fromRGB(140, 195, 255)
+
+    -- Tinggi minimum panel: area Now Playing sekarang 2 baris, jadi list butuh ruang lebih.
+    local MIN_PANEL_H = 250
 
     REN.createMusicUI = function()
         local pg = S.playerGui
@@ -93,7 +106,7 @@ return function(REN)
 
         -- ═══ LIST FRAME ═════════════════════════════════════════════
         local listFrame = W.mk("ScrollingFrame", {
-            Size = UDim2.new(1, -16, 1, -118), Position = UDim2.fromOffset(8, 50),
+            Size = UDim2.new(1, -16, 1, -134), Position = UDim2.fromOffset(8, 50),
             BackgroundColor3 = Color3.fromRGB(25, 30, 42), BorderSizePixel = 0,
             ScrollBarThickness = 4, ScrollBarImageColor3 = Color3.fromRGB(0, 200, 140),
             CanvasSize = UDim2.new(),
@@ -107,16 +120,32 @@ return function(REN)
             PaddingRight = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3),
         }, listFrame)
 
-        -- ═══ NOW PLAYING + REPORT ═══════════════════════════════════
+        -- ═══ NOW PLAYING (baris 1: judul + report) ═══════════════════
         local nowPlaying = W.label(panel, {
-            Size = UDim2.new(1, -44, 0, 16), Position = UDim2.new(0, 8, 1, -64),
+            Size = UDim2.new(1, -44, 0, 16), Position = UDim2.new(0, 8, 1, -80),
             TextColor3 = Color3.fromRGB(240, 240, 250),
             Font = Enum.Font.GothamBold, TextSize = 10,
             TextTruncate = Enum.TextTruncate.AtEnd,
         })
         local reportBtn = W.button(panel, {
-            Size = UDim2.fromOffset(24, 16), Position = UDim2.new(1, -32, 1, -64),
+            Size = UDim2.fromOffset(24, 16), Position = UDim2.new(1, -32, 1, -80),
             BackgroundColor3 = Color3.fromRGB(90, 40, 40), Text = "🚩", TextSize = 9,
+        }, 4)
+
+        -- ═══ NOW PLAYING (baris 2: like, dislike, ID yang bisa disalin) ═
+        local npLike = W.button(panel, {
+            Size = UDim2.fromOffset(46, 16), Position = UDim2.new(0, 8, 1, -62),
+            BackgroundColor3 = Color3.fromRGB(40, 46, 66), Text = "👍 -", TextSize = 9,
+        }, 4)
+        local npDislike = W.button(panel, {
+            Size = UDim2.fromOffset(46, 16), Position = UDim2.new(0, 58, 1, -62),
+            BackgroundColor3 = Color3.fromRGB(40, 46, 66), Text = "👎 -", TextSize = 9,
+        }, 4)
+        local npId = W.button(panel, {
+            Size = UDim2.new(1, -116, 0, 16), Position = UDim2.new(0, 108, 1, -62),
+            BackgroundColor3 = Color3.fromRGB(40, 48, 68), Text = "ID: -",
+            TextColor3 = ID_COLOR, TextSize = 9, Font = Enum.Font.Gotham,
+            TextTruncate = Enum.TextTruncate.AtEnd,
         }, 4)
 
         -- ═══ CONTROLS ═══════════════════════════════════════════════
@@ -171,11 +200,33 @@ return function(REN)
         -- ═══ ROWS MANAGER ═══════════════════════════════════════════
         local rows = REN.createRows(listFrame, searchBox)
 
+        -- ═══ NOW PLAYING: rating + ID ═══════════════════════════════
+        local function currentEntry()
+            return S.currentEntry or S.playlist[S.currentIndex]
+        end
+
+        -- Isi ulang tombol like / dislike / ID sesuai lagu yang sedang diputar.
+        local function refreshNowRating(entry)
+            if not entry then
+                npLike.Text, npDislike.Text, npId.Text = "👍 -", "👎 -", "ID: -"
+                npLike.TextColor3, npDislike.TextColor3 = DIM_COLOR, DIM_COLOR
+                npId.TextColor3 = ID_COLOR
+                return
+            end
+            npLike.Text = "👍 " .. U.countKeys(entry.likes)
+            npDislike.Text = "👎 " .. U.countKeys(entry.dislikes)
+            npLike.TextColor3 = entry.likes[S.myUserId] and LIKE_ON or DIM_COLOR
+            npDislike.TextColor3 = entry.dislikes[S.myUserId] and DISLIKE_ON or DIM_COLOR
+            npId.Text = "ID: " .. U.extractAssetId(entry.id)
+            npId.TextColor3 = ID_COLOR
+        end
+
         -- ═══ UPDATE UI ══════════════════════════════════════════════
         local function updateUI()
-            local entry = S.currentEntry or S.playlist[S.currentIndex]
+            local entry = currentEntry()
             hTitle.Text = "🎵 Music (" .. #S.playlist .. ")"
             nowPlaying.Text = entry and entry.name or "-"
+            refreshNowRating(entry)
             playBtn.Text = S.musicPaused and "▶" or "⏸"
             playBtn.BackgroundColor3 = S.musicPaused
                 and Color3.fromRGB(200, 150, 50)
@@ -189,6 +240,7 @@ return function(REN)
             updateUI(); rows.updateHighlights()
         end
         S.appendRowToUI = rows.appendRowToUI
+        S.rebuildListUI = rows.rebuildList   -- dipakai submit.lua di mode "By Update"
 
         -- ═══ SEARCH FILTER EVENT ════════════════════════════════════
         searchBox:GetPropertyChangedSignal("Text"):Connect(rows.applyFilter)
@@ -217,6 +269,40 @@ return function(REN)
                 uploadDialog.hide(); reportDialog.hide(); infoDialog.toggle()
             end)
         end
+
+        -- ═══ NOW PLAYING EVENTS ═════════════════════════════════════
+        -- Like / dislike lagu yang sedang diputar (sinkron dengan tombol di baris list).
+        npLike.MouseButton1Click:Connect(function()
+            local entry = currentEntry()
+            if entry then R.toggle(entry, "likes") end
+        end)
+        npDislike.MouseButton1Click:Connect(function()
+            local entry = currentEntry()
+            if entry then R.toggle(entry, "dislikes") end
+        end)
+        -- Rating lagu yang sedang diputar berubah (dari sini atau dari baris list).
+        if R.onChange then
+            R.onChange(function(entry)
+                if entry == currentEntry() then refreshNowRating(entry) end
+            end)
+        end
+
+        -- Klik chip ID = salin ID angka ke clipboard.
+        local copyToken = 0
+        npId.MouseButton1Click:Connect(function()
+            local entry = currentEntry()
+            if not entry then return end
+            local ok = U.copyText(U.extractAssetId(entry.id))
+            copyToken = copyToken + 1
+            local myToken = copyToken
+            npId.Text       = ok and "Copied!" or "No clipboard"
+            npId.TextColor3 = ok and W.GREEN or W.RED
+            task.delay(1, function()
+                if copyToken == myToken and npId.Parent then
+                    refreshNowRating(currentEntry())
+                end
+            end)
+        end)
 
         -- ═══ CONTROLS EVENTS ════════════════════════════════════════
         prevBtn.MouseButton1Click:Connect(function()
@@ -291,7 +377,8 @@ return function(REN)
                 )
             elseif drag == "resize" then
                 local w = math.clamp(startSize.X + d.X, C.MinPanelSize.X, C.MaxPanelSize.X)
-                local h = math.clamp(startSize.Y + d.Y, C.MinPanelSize.Y, C.MaxPanelSize.Y)
+                local h = math.clamp(startSize.Y + d.Y,
+                    math.max(C.MinPanelSize.Y, MIN_PANEL_H), C.MaxPanelSize.Y)
                 panel.Size = UDim2.fromOffset(w, h)
             elseif drag == "icon" then
                 if math.abs(d.X) > 5 or math.abs(d.Y) > 5 then iconMoved = true end

@@ -50,12 +50,18 @@ return function(REN)
             submittedBy     = S.player.UserId,
             submittedByName = S.player.Name,
             uploader        = S.player.Name,
+            addedAt         = PL.pushIdToTime(dec.name) or os.time(),
             likes = {}, dislikes = {},
         }
         table.insert(S.allSongs, entry)
         PL.registerId(assetId)
+        if S.viewMode == "update" then
+            -- "By Update": lagu baru harus di paling atas, jadi urutkan ulang list.
+            PL.setView("update")
+            if S.rebuildListUI then S.rebuildListUI() end
+            if S.refreshUI then S.refreshUI() end
         -- Di mode "My Likes" lagu baru belum di-like, jadi tidak masuk list aktif.
-        if S.viewMode ~= "mine" then
+        elseif S.viewMode ~= "mine" then
             table.insert(S.playlist, entry)
             if S.appendRowToUI then S.appendRowToUI(#S.playlist, entry) end
         end

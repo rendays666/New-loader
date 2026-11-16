@@ -4,6 +4,13 @@ return function(REN)
     local S  = REN.State
     local FB = REN.Firebase
 
+    -- Listener dipanggil setiap rating sebuah lagu berubah, dari tombol mana pun
+    -- (baris list atau Now Playing), supaya semua tampilan lagu itu tetap sinkron.
+    local listeners = {}
+    local function notify(entry)
+        for _, fn in ipairs(listeners) do pcall(fn, entry) end
+    end
+
     local function toggleRating(entry, kind)
         local opposite = (kind == "likes") and "dislikes" or "likes"
         local base = "/ratings/" .. entry.ratingsKey .. "/"
@@ -25,7 +32,11 @@ return function(REN)
                 FB.put(base .. kind .. "/" .. S.myUserId .. ".json", true)
             end)
         end
+        notify(entry)
     end
 
-    REN.Ratings = { toggle = toggleRating }
+    REN.Ratings = {
+        toggle   = toggleRating,
+        onChange = function(fn) listeners[#listeners + 1] = fn end,
+    }
 end

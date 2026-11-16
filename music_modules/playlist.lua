@@ -23,6 +23,31 @@ return function(REN)
         return REN.FallbackPlaylist
     end
 
+    -- ── Urutan "By Update" (lagu yang baru ditambahkan di paling atas) ──────
+    -- playlist.json tidak punya tanggal, jadi aturannya:
+    --   1. Lagu yang punya waktu -> yang paling baru di atas. Waktu berasal dari:
+    --        - lagu upload lewat GUI (waktu server Firebase dari push ID)
+    --        - entri playlist.json yang diberi field "addedAt" (unix detik)
+    --   2. Lagu playlist.json tanpa waktu -> mengikuti urutan baris di file.
+    -- BASE_NEWEST_LAST = true  : baris PALING BAWAH di playlist.json = paling baru
+    --                    false : baris PALING ATAS di playlist.json = paling baru
+    local BASE_NEWEST_LAST = true
+
+    -- Firebase push ID: 8 karakter pertama = waktu (milidetik) dalam basis-64.
+    -- Dibaca dari ID, bukan dari field "submittedAt" yang dikirim klien, supaya
+    -- tidak bisa dipalsukan.
+    local PUSH_CHARS = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz"
+    local function pushIdToTime(id)
+        if type(id) ~= "string" or #id < 8 then return nil end
+        local ms = 0
+        for i = 1, 8 do
+            local pos = PUSH_CHARS:find(id:sub(i, i), 1, true)
+            if not pos then return nil end
+            ms = ms * 64 + (pos - 1)
+        end
+        return math.floor(ms / 1000)
+    end
+
     local function fetchBasePlaylist()
         if not C.PlaylistURL or C.PlaylistURL == "" then
             return useFallback("PlaylistURL kosong")
@@ -39,7 +64,10 @@ return function(REN)
         local clean = {}
         for _, e in ipairs(list) do
             if type(e) == "table" and e.id and e.name then
-                table.insert(clean, { name = tostring(e.name), id = tostring(e.id) })
+                table.insert(clean, {
+                    name = tostring(e.name), id = tostring(e.id),
+                    addedAt = tonumber(e.addedAt),   -- opsional, unix detik
+                })
             end
         end
         if #clean == 0 then return useFallback("0 entri valid di playlist.json") end
@@ -50,7 +78,8 @@ return function(REN)
     local function buildPlaylist()
         local base = fetchBasePlaylist()
 
-        for _, e in ipairs(base) do
+        for i, e in ipairs(base) do
+            e.baseIdx      = i      -- urutan baris di playlist.json (untuk "By Update")
             e.ratingsKey   = "a_" .. U.extractAssetId(e.id)
             e.isSubmission = false
             e.likes        = {}
@@ -67,6 +96,7 @@ return function(REN)
                     submittedBy = sub.submittedBy, submittedByName = sub.submittedByName,
                     uploader = (type(sub.submittedByName) == "string" and sub.submittedByName ~= "")
                         and sub.submittedByName or "unknown",
+                    addedAt = pushIdToTime(pushId) or tonumber(sub.submittedAt),
                     likes = {}, dislikes = {},
                 })
             end
@@ -94,8 +124,31 @@ return function(REN)
 
     local PL = {}
 
-    -- ── View mode: top (urut skor like) → mine (lagu yang aku like) → shuffle ──
-    local VIEW_ORDER = { "top", "mine", "shuffle" }
+    -- Terbaru di atas. Comparator ini valid sebagai strict weak ordering:
+    -- yang bertanggal selalu di atas yang tidak, lalu tie-break berurutan.
+    local function sortByUpdate(list)
+        table.sort(list, function(a, b)
+            local ta, tb = a.addedAt, b.addedAt
+            if ta and tb then
+                if ta ~= tb then return ta > tb end
+            elseif ta then
+                return true
+            elseif tb then
+                return false
+            end
+            local ia, ib = a.baseIdx or 0, b.baseIdx or 0
+            if ia ~= ib then
+                if BASE_NEWEST_LAST then return ia > ib end
+                return ia < ib
+            end
+            return a.name < b.name
+        end)
+    end
+    PL.sortByUpdate = sortByUpdate
+    PL.pushIdToTime = pushIdToTime
+
+    -- ── View mode: top → mine → shuffle → update (By Update), lalu ulang ──
+    local VIEW_ORDER = { "top", "mine", "shuffle", "update" }
     PL.VIEW_ORDER = VIEW_ORDER
 
     function PL.nextView(mode)
@@ -119,6 +172,8 @@ return function(REN)
             for _, e in ipairs(S.allSongs) do list[#list + 1] = e end
             if mode == "shuffle" then
                 U.shuffleList(list)
+            elseif mode == "update" then
+                sortByUpdate(list)
             else
                 mode = "top"
                 U.sortByScore(list)

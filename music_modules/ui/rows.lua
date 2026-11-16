@@ -17,6 +17,16 @@ return function(REN)
     REN.createRows = function(listFrame, searchBox)
         local rowsByIdx = {}
 
+        -- Rating bisa diubah dari tempat lain (tombol di Now Playing):
+        -- sinkronkan baris lagu yang sama.
+        if R.onChange then
+            R.onChange(function(entry)
+                for _, d in pairs(rowsByIdx) do
+                    if d.entry == entry then d.refreshRating() end
+                end
+            end)
+        end
+
         local function buildRow(idx, entry)
             local isCur = (entry == S.currentEntry)
             local row = W.mk("Frame", {
@@ -104,7 +114,10 @@ return function(REN)
                 R.toggle(entry, "dislikes"); updateRatingUI()
             end)
 
-            rowsByIdx[idx] = {row = row, playRow = playRow, entry = entry, assetId = assetId}
+            rowsByIdx[idx] = {
+                row = row, playRow = playRow, entry = entry, assetId = assetId,
+                refreshRating = updateRatingUI,
+            }
         end
 
         local function updateHighlights()

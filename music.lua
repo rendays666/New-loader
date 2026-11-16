@@ -1,5 +1,5 @@
 --[[
-  RENRENHUB — MUSIC LOADER v3.10.0
+  RENRENHUB — MUSIC LOADER v3.11.0
   Entry point. URL TIDAK berubah.
 
   LOG LOADER: atur lewat CONFIG di bawah. Panel log (modul `logger`) dimuat
@@ -7,7 +7,7 @@
   di-copy. Kalau semua sukses, panel hilang sendiri (bisa dimatikan).
 ]]
 
-local SCRIPT_VERSION = "3.10.0"
+local SCRIPT_VERSION = "3.11.0"
 
 -- ═══ CONFIG LOG (EDIT DI SINI) ═════════════════════════════════════
 local CONFIG = {

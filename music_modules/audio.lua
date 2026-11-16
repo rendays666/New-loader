@@ -211,7 +211,7 @@ return function(REN)
         end
 
         local mode = saved.viewMode
-        if mode == "mine" or mode == "shuffle" then
+        if mode == "mine" or mode == "shuffle" or mode == "update" then
             local n = PL.setView(mode)
             if n == 0 then PL.setView("top") end   -- belum ada lagu yang di-like
         end
