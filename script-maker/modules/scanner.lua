@@ -17,8 +17,14 @@ return function(D)
     local function log(text, color) D.Log.write(text, color, "scan") end
 
     local function looksObfuscated(src, size)
-        if size >= 10000 or size <= 200 then return false end
-        if src:find("LPH_", 1, true) or src:find("__prometheus", 1, true) then return true end
+        if size <= 200 then return false end
+        -- marker obfuscator dicek DULU (script obfuscated biasanya besar, jangan dilewati gerbang ukuran)
+        local head = src:sub(1, 4000)
+        if head:find("LPH_", 1, true) or head:find("__prometheus", 1, true)
+            or head:find("Luraph", 1, true) or head:find("IronBrew", 1, true) then
+            return true
+        end
+        if size >= 10000 then return false end
         local sample = src:sub(1, math.min(#src, 500))
         local bs = 0
         for k = 1, #sample do

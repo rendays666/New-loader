@@ -1,73 +1,56 @@
---[[ UI/TOOLTIP — kotak info. API: D.UI.showTooltip({name, desc, use}) | D.UI.hideTooltip() ]]
+--[[ UI/TOOLTIP — kotak info kecil di atas footer. API: D.UI.showTooltip({name, desc, use}) | D.UI.hideTooltip() ]]
 
 return function(D)
-    local UI = D.UI
-    local main = UI.main
+    local UI, K = D.UI, D.UI.kit
+    local T = D.Config.THEME
 
     local token = 0
-    local tooltip = Instance.new("Frame")
-    tooltip.Size = UDim2.new(1, -16, 0, 90)
-    tooltip.Position = UDim2.new(0, 8, 1, -100)
-    tooltip.BackgroundColor3 = Color3.fromRGB(22, 22, 38)
-    tooltip.BorderSizePixel = 0
-    tooltip.Visible = false
-    tooltip.ZIndex = 50
-    tooltip.Parent = main
-    Instance.new("UICorner", tooltip).CornerRadius = UDim.new(0, 6)
-    local stroke = Instance.new("UIStroke", tooltip)
-    stroke.Color = Color3.fromRGB(100, 150, 255)
-    stroke.Thickness = 1
+    local box = K.new("Frame", {
+        Size = UDim2.new(1, -16, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        Position = UDim2.new(0, 8, 1, -44), AnchorPoint = Vector2.new(0, 1),
+        BackgroundColor3 = T.panel, BorderSizePixel = 0, Visible = false, ZIndex = 50, Parent = UI.main,
+    }, {
+        K.corner(8),
+        K.new("UIStroke", { Color = T.accent, Thickness = 1 }),
+    })
+    -- Isi teks di dalam "inner" (punya UIListLayout); tombol close sibling-nya, bebas dari layout
+    local inner = K.new("Frame", {
+        Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1, ZIndex = 51, Parent = box,
+    }, {
+        K.pad(8, 6, 26, 8),
+        K.new("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder }),
+    })
 
-    local function mkLabel(y, h, font, size, color, zi)
-        local l = Instance.new("TextLabel")
-        l.Size = UDim2.new(1, -8, 0, h)
-        l.Position = UDim2.new(0, 4, 0, y)
-        l.BackgroundTransparency = 1
-        l.Font = font
-        l.TextSize = size
-        l.TextColor3 = color
-        l.TextXAlignment = Enum.TextXAlignment.Left
-        l.ZIndex = zi
-        l.Parent = tooltip
+    local function line(color, bold, size)
+        local l = K.label(inner, "", { color = color, bold = bold, size = size })
+        l.ZIndex = 51
         return l
     end
+    local tTitle = line(T.accent, true, 12)
+    local tDesc  = line(T.text, false, 11)
+    local tUse   = line(Color3.fromRGB(130, 230, 170), false, 11)
 
-    local tTitle = mkLabel(2, 14, Enum.Font.GothamBold, 10, Color3.fromRGB(150, 200, 255), 51)
-    tTitle.TextTruncate = Enum.TextTruncate.AtEnd
-    local tDesc = mkLabel(17, 30, Enum.Font.Gotham, 9, Color3.fromRGB(220, 220, 220), 51)
-    tDesc.TextYAlignment = Enum.TextYAlignment.Top
-    tDesc.TextWrapped = true
-    local tUse = mkLabel(48, 30, Enum.Font.Gotham, 9, Color3.fromRGB(150, 255, 180), 51)
-    tUse.TextYAlignment = Enum.TextYAlignment.Top
-    tUse.TextWrapped = true
-
-    local close = Instance.new("TextButton")
-    close.Size = UDim2.new(0, 12, 0, 12)
-    close.Position = UDim2.new(1, -14, 0, 1)
-    close.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
-    close.Text = "x"
-    close.Font = Enum.Font.GothamBold
-    close.TextSize = 9
-    close.TextColor3 = Color3.new(1, 1, 1)
-    close.BorderSizePixel = 0
-    close.ZIndex = 52
-    close.Parent = tooltip
-    Instance.new("UICorner", close).CornerRadius = UDim.new(1, 0)
+    local close = K.new("TextButton", {
+        Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(1, -22, 0, 4), BackgroundColor3 = T.bad,
+        Text = "x", Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = Color3.new(1, 1, 1),
+        BorderSizePixel = 0, ZIndex = 52, Parent = box,
+    }, { K.corner(9) })
 
     function UI.hideTooltip()
         token = token + 1
-        tooltip.Visible = false
+        box.Visible = false
     end
 
     function UI.showTooltip(info)
         tTitle.Text = info.name or "?"
         tDesc.Text = info.desc or ""
-        tUse.Text = "💡 " .. (info.use or "")
-        tooltip.Visible = true
+        tUse.Text = info.use and ("💡 " .. info.use) or ""
+        box.Visible = true
         token = token + 1
-        local t = token
-        task.delay(8, function()
-            if token == t then tooltip.Visible = false end
+        local mine = token
+        task.delay(10, function()
+            if token == mine then box.Visible = false end
         end)
     end
 

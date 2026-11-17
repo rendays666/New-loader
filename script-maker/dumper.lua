@@ -4,24 +4,30 @@
     loadstring(game:HttpGet("https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/script-maker/dumper.lua"))()
 
   Loader ini hanya mengunduh & menjalankan module di script-maker/modules/ sesuai MODULE_ORDER.
+  v15: GUI baru (mode Simple/Advanced, English), remote spy (NetScope) digabung, HK2 tersambung.
   Peta module + panduan debugging: lihat script-maker/ARCHITECTURE.md
   Error load/compile/runtime module hanya lewat warn() di console + bagian DIAGNOSTICS di file SMART/FULL.
 ]]
 
-local SCRIPT_VERSION = "14.0.0"
+local SCRIPT_VERSION = "15.0.0"
 
+-- Tes dari branch lain: getgenv().DUMPER_BRANCH = "nama-branch" sebelum loadstring (default: main)
+local _env = (getgenv and getgenv()) or _G
+local BRANCH = (type(_env.DUMPER_BRANCH) == "string" and _env.DUMPER_BRANCH ~= "") and _env.DUMPER_BRANCH or "main"
 local BASE_URLS = {
-    "https://raw.githubusercontent.com/rendays666/New-loader/main/script-maker/modules/",
-    "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/main/script-maker/modules/",
+    "https://raw.githubusercontent.com/rendays666/New-loader/" .. BRANCH .. "/script-maker/modules/",
+    "https://raw.githubusercontent.com/rendays666/New-loader/refs/heads/" .. BRANCH .. "/script-maker/modules/",
 }
 
 -- Urutan penting: module hanya boleh memakai D.* dari module di atasnya.
 local MODULE_ORDER = {
-    "config", "state", "logger", "util", "output",
-    "runtime/capture", "runtime/hook", "runtime/ui_watch", "runtime/passive",
+    "config", "state", "logger", "util", "codegen", "output",
+    "runtime/capture", "runtime/hook", "runtime/ui_watch", "runtime/passive", "runtime/spy",
     "scanner",
     "build/snapshot", "build/runtime_report", "build/reports", "build/mechanics",
-    "ui/frame", "ui/logview", "ui/tooltip", "ui/widgets", "ui/list", "ui/chips", "ui/buttons",
+    "actions",
+    "ui/kit", "ui/frame", "ui/tooltip", "ui/logview",
+    "ui/page_start", "ui/page_scan", "ui/page_capture", "ui/page_watch", "ui/page_export", "ui/page_settings",
     "bootstrap",
 }
 
@@ -36,12 +42,8 @@ local function validResponse(r)
     return true
 end
 
-local function httpFetchOnce(url)
+local function tryUrl(url)
     local ok, res = pcall(function() return game:HttpGet(url, true) end)
-    if ok and validResponse(res) then return res end
-
-    local bustUrl = url .. (url:find("?") and "&" or "?") .. "_t=" .. tostring(os.time())
-    ok, res = pcall(function() return game:HttpGet(bustUrl, true) end)
     if ok and validResponse(res) then return res end
 
     ok, res = pcall(function() return game:GetService("HttpService"):GetAsync(url, true) end)
@@ -66,6 +68,13 @@ local function httpFetchOnce(url)
         end
     end
     return nil
+end
+
+-- Cache-bust di percobaan PERTAMA: raw.githubusercontent di-cache ~5 menit, jadi tanpa ini
+-- setelah push bisa termuat campuran module lama + baru (version skew). Fallback: URL polos.
+local bustStamp = tostring(os.time())
+local function httpFetchOnce(url)
+    return tryUrl(url .. "?cb=" .. bustStamp) or tryUrl(url)
 end
 
 local function fetchModule(name)

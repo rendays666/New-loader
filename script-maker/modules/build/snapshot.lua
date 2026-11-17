@@ -1,5 +1,5 @@
 --[[ BUILD/SNAPSHOT — D.Build.snapshot(): header "CONFIG SNAPSHOT" untuk AI pembaca file.
-     Menjelaskan chip mana ON/OFF saat file dibuat dan data apa yang ada/tidak ada. ]]
+     Menjelaskan opsi mana ON/OFF saat file dibuat dan data apa yang ada/tidak ada. ]]
 
 return function(D)
     local S, Cfg, U = D.State, D.Config, D.Util
@@ -39,32 +39,32 @@ return function(D)
         add("1. SCAN         → baca .Source semua script dari root yang ON")
         add("                  (bukan runtime, hanya snapshot statis dari kode)")
         add("2. SMART/FULL   → build analisis pakai hasil scan")
-        add("3. UI/HK/UC     → rekam data RUNTIME terpisah dari scan")
-        add("4. Chip RS..TM  → pilih root mana yang di-scan")
-        add("5. Chip DC/BC/RC→ opsi baca source (default OFF untuk anti-crash)")
-        add("6. Chip UI/HK/UC→ rekam aktivitas live (butuh diaktifkan user)")
-        add("7. Bagian DIAGNOSTICS di akhir file = status hook, error, log terakhir")
+        add("3. Record game actions / on-screen buttons → rekam data RUNTIME terpisah dari scan")
+        add("4. Scan places  → pilih root mana yang di-scan (Scan tab)")
+        add("5. Scan options → decompile/bytecode/core (default OFF untuk anti-crash)")
+        add("6. Bagian DIAGNOSTICS di akhir file = status hook, error, log terakhir")
         add("")
-        add(line); add("ROOT SCAN (chip RS..TM):"); add(line)
+        add(line); add("ROOT SCAN (Scan places):"); add(line)
         for _, r in ipairs(Cfg.SKIP_ROOTS) do
             local inf = Cfg.ROOT_INFO[r.abbr]
             add(("  [%s] %s  %-18s — %s"):format(onOff(S.rootEnabled[r.name]), r.abbr,
                 inf and inf.name or r.name, inf and inf.desc or ""))
         end
         add("")
-        add(line); add("OPSI SCAN (chip DC/BC/RC):"); add(line)
+        add(line); add("OPSI SCAN:"); add(line)
         add(("  [%s] DC  Decompile fallback (LAMBAT, crash-prone)"):format(onOff(S.scanOptions.decompile)))
         add(("  [%s] BC  Bytecode dump (SANGAT besar, tak terbaca)"):format(onOff(S.scanOptions.bytecode)))
         add(("  [%s] RC  Read Roblox core (PlayerModule/CameraModule dkk)"):format(onOff(S.scanOptions.readCore)))
         add("")
-        add(line); add("RUNTIME CAPTURE (chip UI/HK/UC):"); add(line)
-        add(("  [%s] UI  Watch PlayerGui (ImageButton/TextButton muncul)"):format(onOff(S.uiActive)))
-        add(("  [%s] HK  Hook FireServer/InvokeServer (log argumen)"):format(onOff(S.hkActive)))
-        add(("  [%s] UC  Unreliable mode (hookfunction fallback)"):format(onOff(S.ucActive)))
+        add(line); add("RUNTIME CAPTURE:"); add(line)
+        add(("  [%s] UI  Record on-screen buttons (PlayerGui)"):format(onOff(S.uiActive)))
+        add(("  [%s] REC Record game actions FireServer/InvokeServer (method: %s)"):format(
+            onOff(S.capturing), tostring(S.captureUsing or S.captureMethod)))
+        add(("  [%s] RUN Listen to server messages (LogService + OnClientEvent)"):format(onOff(S.passiveActive)))
         add("")
         add(line); add("BUTTON LIST:"); add(line)
-        for _, key in ipairs({ "SCAN", "SMART", "MECH", "INDEX", "FULL", "CLR",
-                               "REM", "CFG", "PATH", "RUN", "TREE" }) do
+        for _, key in ipairs({ "SCAN", "SMART", "FULL", "MECH", "INDEX", "PATHS",
+                               "REMOTES", "CONFIG", "TREE" }) do
             add(("  %-5s — %s"):format(key, Cfg.BTN_INFO[key].desc))
         end
         add("")
@@ -83,24 +83,24 @@ return function(D)
         if #rc.ui > 0 then
             add(("  ✅ Runtime UI      : %d tombol"):format(#rc.ui))
         else
-            add("  ❌ Runtime UI      : kosong (chip UI belum diaktifkan / belum buka menu)")
+            add("  ❌ Runtime UI      : kosong ("Record on-screen buttons" belum diaktifkan / belum buka menu)")
         end
         if #rc.fireServer > 0 then
             add(("  ✅ Runtime FS      : %d call"):format(#rc.fireServer))
         else
-            add("  ❌ Runtime FS      : kosong (HK/UC belum diaktifkan / belum ada aksi)")
+            add("  ❌ Runtime FS      : kosong ("Record game actions" belum diaktifkan / belum ada aksi)")
         end
         add("")
         add(line); add("INSTRUKSI UNTUK AI LAIN:"); add(line)
         add("  - Cek daftar ON/OFF di atas sebelum analisis")
         add("  - Data yang ditandai ❌ = tidak ada di file ini")
-        add("  - Kalau FS kosong padahal HK ON: lihat DIAGNOSTICS (hook terpasang? queue? error?)")
+        add("  - Kalau FS kosong padahal recording ON: lihat DIAGNOSTICS (hook terpasang? queue? error?)")
         add("  - Kalau butuh data yang OFF, minta user:")
-        add("      • untuk PlayerModule → aktifkan chip RC + re-SCAN")
-        add("      • untuk tombol runtime → aktifkan chip UI, buka menu/match, baru capture")
-        add("      • untuk argumen remote → aktifkan chip HK (atau UC), lakukan aksi sekali")
-        add("  - Runtime capture TIDAK butuh SCAN ulang, cukup aktifkan chip")
-        add("  - Saran 'penting saja': Script logic → RS + SP; Runtime UI → UI on; Argumen remote → HK on")
+        add("      • untuk PlayerModule → aktifkan "Include Roblox core scripts" + re-SCAN")
+        add("      • untuk tombol runtime → aktifkan "Record on-screen buttons", buka menu/match, baru capture")
+        add("      • untuk argumen remote → aktifkan "Record game actions" (coba metode Stealth/Namecall), lakukan aksi sekali")
+        add("  - Runtime capture TIDAK butuh SCAN ulang, cukup aktifkan perekamannya")
+        add("  - Saran 'penting saja': Script logic → RS + SP; Runtime UI → Record buttons on; Argumen remote → Record actions on")
         add(sep)
         return table.concat(out, "\n")
     end

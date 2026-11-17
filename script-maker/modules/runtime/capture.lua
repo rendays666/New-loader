@@ -5,11 +5,18 @@
      Versi lama memanggil remote:GetFullName(), v.Name, tostring() dkk langsung di dalam
      hook. Itu method call juga → me-reset "namecall method" → panggilan asli game
      (:FireServer dari tombol GUI) jadi salah target / error → GUI game mati.
-     Sekarang hook hanya memanggil D.Capture.enqueue (push ke tabel, tanpa method call
-     Instance). Semua kerja berat (GetFullName, format argumen, log GUI) dilakukan di
-     Heartbeat lewat D.Capture.start().
+     Hook hanya memanggil D.Capture.enqueue (push ke tabel, tanpa method call Instance).
+     Semua kerja berat (GetFullName, format argumen, log GUI) dilakukan di Heartbeat.
 
-     API: enqueue(remote, method, args) | start() | flush() | pending() | stats ]]
+     Dedup (v15): panggilan dianggap duplikat HANYA kalau remote + method + argumen sama
+     dalam DEDUP_SEC. (v14 membuang panggilan beda-argumen yang cepat beruntun.)
+
+     Entri tersimpan di S.runtimeCapture.fireServer:
+       { id, time, remote(string path), inst(Instance), class, method, args(string[]), raw(table.pack) }
+     Listener UI: D.Capture.addListener(fn) → fn(entry) tiap entri baru, fn(nil) kalau data dihapus.
+
+     API: enqueue(remote, method, args) | start() | flush() | pending() | clearCalls()
+          addListener(fn) | stats ]]
 
 return function(D)
     local S, Cfg = D.State, D.Config
@@ -17,16 +24,34 @@ return function(D)
 
     local C = {}
     D.Capture = C
-    C.stats = { enqueued = 0, dropped = 0, logged = 0, deduped = 0, errors = 0 }
+    C.stats = { enqueued = 0, dropped = 0, logged = 0, deduped = 0, ignored = 0, errors = 0 }
 
     local queue, qHead, qTail = {}, 1, 0
-    local last = { remote = nil, method = nil, time = 0 }
+    local last = { remote = nil, method = nil, sig = nil, time = 0 }
+    local listeners = {}
+    local seq = 0
 
     function C.pending() return qTail - qHead + 1 end
 
     function C.flush()
         queue, qHead, qTail = {}, 1, 0
-        last.remote, last.method, last.time = nil, nil, 0
+        last.remote, last.method, last.sig, last.time = nil, nil, nil, 0
+    end
+
+    function C.addListener(fn) listeners[#listeners + 1] = fn end
+
+    local function notify(entry)
+        for _, fn in ipairs(listeners) do
+            local ok, err = pcall(fn, entry)
+            if not ok then D.Log.err("capture:listener", err) end
+        end
+    end
+
+    -- Hapus semua panggilan tertangkap (dipakai tombol Clear / RT)
+    function C.clearCalls()
+        S.runtimeCapture.fireServer = {}
+        C.flush()
+        notify(nil)
     end
 
     -- DIPANGGIL DARI DALAM HOOK — jaga tetap minimal, jangan panggil method Instance di sini.
@@ -72,31 +97,47 @@ return function(D)
         local remote, method, args, t = item[1], item[2], item[3], item[4]
         if typeof(remote) ~= "Instance" then return end
 
-        if last.remote == remote and last.method == method and (t - last.time) < Cfg.FS.DEDUP_SEC then
-            C.stats.deduped = C.stats.deduped + 1
+        local spy = S.spy
+        if spy.paused then return end
+        if spy.ignored[remote] then
+            C.stats.ignored = C.stats.ignored + 1
             return
         end
-        last.remote, last.method, last.time = remote, method, t
 
         local parts, maxArgs = {}, Cfg.FS.MAX_ARGS
         for i = 1, math.min(args.n, maxArgs) do parts[i] = fmtArg(args[i]) end
         if args.n > maxArgs then parts[#parts + 1] = "…+" .. (args.n - maxArgs) end
+        local sig = table.concat(parts, "|")
+
+        if last.remote == remote and last.method == method and last.sig == sig
+            and (t - last.time) < Cfg.FS.DEDUP_SEC then
+            C.stats.deduped = C.stats.deduped + 1
+            return
+        end
+        last.remote, last.method, last.sig, last.time = remote, method, sig, t
 
         local okC, class = pcall(function() return remote.ClassName end)
         local okN, rname = pcall(function() return remote.Name end)
-        local list = S.runtimeCapture.fireServer
-        list[#list + 1] = {
+        seq = seq + 1
+        local entry = {
+            id     = seq,
             time   = t,
             remote = D.Util.safeFullName(remote),
+            inst   = remote,
+            name   = okN and tostring(rname) or "?",
             class  = okC and class or "?",
             method = method,
             args   = parts,
+            raw    = args,
         }
+        local list = S.runtimeCapture.fireServer
+        list[#list + 1] = entry
         if #list > Cfg.FS.MAX_ENTRIES then table.remove(list, 1) end
         C.stats.logged = C.stats.logged + 1
 
-        D.Log.write(("🔥 %s %s(%s)"):format(method, okN and rname or "?", table.concat(parts, ", ")),
+        D.Log.write(("🔥 %s %s(%s)"):format(method, entry.name, table.concat(parts, ", ")),
             Cfg.COLOR.busy, "fs")
+        notify(entry)
     end
 
     -- Sambungkan pemroses antrean ke Heartbeat (idempoten)

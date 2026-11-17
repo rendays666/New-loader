@@ -16,8 +16,8 @@ return function(D)
         if #rc.ui == 0 and #rc.fireServer == 0 then
             out[#out + 1] = ""
             out[#out + 1] = "⚠ Tidak ada runtime capture."
-            out[#out + 1] = "  Untuk UI  : aktifkan chip UI → buka menu"
-            out[#out + 1] = "  Untuk FS  : aktifkan chip HK → lakukan aksi sekali"
+            out[#out + 1] = "  Untuk UI  : GUI → Watch → 'Record on-screen buttons' ON → buka menu game"
+            out[#out + 1] = "  Untuk FS  : GUI → Start/Capture → 'Record game actions' ON → lakukan aksi sekali"
         end
 
         if #rc.ui > 0 then
@@ -69,19 +69,22 @@ return function(D)
 
         add("")
         add("## Hook / capture")
-        add(("  chip HK=%s UC=%s UI=%s RUN=%s"):format(
-            tostring(S.hkActive), tostring(S.ucActive), tostring(S.uiActive), tostring(S.passiveActive)))
+        add(("  capture=%s method=%s using=%s UI=%s RUN=%s"):format(
+            tostring(S.capturing), tostring(S.captureMethod), tostring(S.captureUsing),
+            tostring(S.uiActive), tostring(S.passiveActive)))
+        add(("  flags HK1(namecall)=%s HK2(stealth)=%s"):format(tostring(S.hkActive), tostring(S.hk2Active)))
         local hs = D.Hook and D.Hook.status() or {}
         add(("  namecall hook terpasang : %s"):format(tostring(hs.namecallInstalled)))
-        add(("  UC hookfunction class   : %s"):format(
-            (hs.ucClasses and #hs.ucClasses > 0) and table.concat(hs.ucClasses, ", ") or "-"))
+        add(("  HK2 hookfunction class  : %s"):format(
+            (hs.hk2Classes and #hs.hk2Classes > 0) and table.concat(hs.hk2Classes, ", ") or "-"))
         add(("  hook lastError          : %s"):format(tostring(hs.lastError)))
         if D.Capture then
             local st = D.Capture.stats
             add(("  antrean pending         : %d"):format(D.Capture.pending()))
-            add(("  enqueued=%d logged=%d deduped=%d dropped=%d errors=%d"):format(
-                st.enqueued, st.logged, st.deduped, st.dropped, st.errors))
-            add("  (enqueued>0 tapi logged=0 → bug di D.Capture / drain. enqueued=0 → hook tidak menangkap.)")
+            add(("  enqueued=%d logged=%d deduped=%d ignored=%d dropped=%d errors=%d"):format(
+                st.enqueued, st.logged, st.deduped, st.ignored, st.dropped, st.errors))
+            add("  (enqueued>0 tapi logged=0 → bug di D.Capture / drain, atau Pause/Ignore aktif.)")
+            add("  (enqueued=0 padahal sudah beraksi → coba metode lain: Stealth ↔ Namecall.)")
         end
 
         add("")

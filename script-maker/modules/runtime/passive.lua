@@ -1,5 +1,5 @@
 --[[ RUNTIME/PASSIVE — tombol RUN: log LogService + OnClientEvent (server → client).
-     Pasif, tidak menyentuh metatable. Untuk client → server pakai chip HK.
+     Pasif, tidak menyentuh metatable. Untuk client → server pakai "Record game actions" (D.Hook).
      API: D.Passive.start() | D.Passive.stop() | D.Passive.isActive() ]]
 
 return function(D)
@@ -8,10 +8,12 @@ return function(D)
     D.Passive = P
 
     local conns = {}
+    local runId = 0 -- supaya start→stop→start cepat tidak meninggalkan dua loop scan remote
 
     function P.isActive() return S.passiveActive end
 
     function P.stop()
+        runId = runId + 1
         for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
         conns = {}
         if S.passiveActive then
@@ -37,6 +39,8 @@ return function(D)
     function P.start()
         if S.passiveActive then return end
         S.passiveActive = true
+        runId = runId + 1
+        local myRun = runId
 
         local ok, conn = pcall(function()
             return game:GetService("LogService").MessageOut:Connect(function(msg, typ)
@@ -55,7 +59,7 @@ return function(D)
         task.spawn(function()
             local hooked, n = 0, 0
             for _, d in ipairs(game:GetDescendants()) do
-                if not S.passiveActive then return end
+                if not S.passiveActive or myRun ~= runId then return end
                 local isRemote = d:IsA("RemoteEvent")
                 if not isRemote then
                     local okU, res = pcall(function() return d:IsA("UnreliableRemoteEvent") end)
