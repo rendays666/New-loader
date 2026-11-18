@@ -83,12 +83,12 @@ return function(D)
         if #rc.ui > 0 then
             add(("  ✅ Runtime UI      : %d tombol"):format(#rc.ui))
         else
-            add("  ❌ Runtime UI      : kosong ("Record on-screen buttons" belum diaktifkan / belum buka menu)")
+            add("  ❌ Runtime UI      : kosong ('Record on-screen buttons' belum diaktifkan / belum buka menu)")
         end
         if #rc.fireServer > 0 then
             add(("  ✅ Runtime FS      : %d call"):format(#rc.fireServer))
         else
-            add("  ❌ Runtime FS      : kosong ("Record game actions" belum diaktifkan / belum ada aksi)")
+            add("  ❌ Runtime FS      : kosong ('Record game actions' belum diaktifkan / belum ada aksi)")
         end
         add("")
         add(line); add("INSTRUKSI UNTUK AI LAIN:"); add(line)
@@ -96,9 +96,9 @@ return function(D)
         add("  - Data yang ditandai ❌ = tidak ada di file ini")
         add("  - Kalau FS kosong padahal recording ON: lihat DIAGNOSTICS (hook terpasang? queue? error?)")
         add("  - Kalau butuh data yang OFF, minta user:")
-        add("      • untuk PlayerModule → aktifkan "Include Roblox core scripts" + re-SCAN")
-        add("      • untuk tombol runtime → aktifkan "Record on-screen buttons", buka menu/match, baru capture")
-        add("      • untuk argumen remote → aktifkan "Record game actions" (coba metode Stealth/Namecall), lakukan aksi sekali")
+        add("      • untuk PlayerModule → aktifkan 'Include Roblox core scripts' + re-SCAN")
+        add("      • untuk tombol runtime → aktifkan 'Record on-screen buttons', buka menu/match, baru capture")
+        add("      • untuk argumen remote → aktifkan 'Record game actions' (coba metode Stealth/Namecall), lakukan aksi sekali")
         add("  - Runtime capture TIDAK butuh SCAN ulang, cukup aktifkan perekamannya")
         add("  - Saran 'penting saja': Script logic → RS + SP; Runtime UI → Record buttons on; Argumen remote → Record actions on")
         add(sep)
