@@ -35,6 +35,8 @@ Module hanya boleh memakai `D.*` dari module yang **di atasnya** di urutan load.
 | `build/runtime_report` | `D.Build.runtime`, `D.Build.diagnostics` | Bagian RUNTIME + DIAGNOSTICS |
 | `build/reports` | `D.Build.index/remotes/tree/config` | Laporan berbasis game tree |
 | `build/mechanics` | `D.Build.mechanics` | Analisis dari hasil scan |
+| `build/brief_data` | `D.BriefData` | Dedup script (nama+ukuran+hash), signature remote dari source, config/tree/UI grouping |
+| `build/brief` | `D.Build.brief` | AI BRIEF ≤15K char: REMOTES→CONFIG→MECHANICS→TREE→API→UI→DIAGNOSTICS, trim API→UI→Tree, validasi |
 | `actions` | `D.Actions` | Semua logika tombol (scan, report, copy, setCapture, ...) — GUI hanya memanggil ini |
 | `ui/kit` | `D.UI.kit` | Komponen: button, toggle, card, grid, stack, tip |
 | `ui/frame` | `D.UI.gui/main/addPage/setTab/setMode/onMode/setStatus/setRtStatus` | Window, drag, tab bar, mode Simple/Advanced, footer status |

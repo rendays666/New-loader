@@ -37,6 +37,9 @@ return function(D)
     local g3 = K.grid(c3, 2, 32)
     K.button(g3, "Save report", function() A.report("smart", "save") end, { color = T.accent, tip = "SMART" })
     K.button(g3, "Copy report", function() A.report("smart", "copy") end, { tip = "SMART" })
+    K.button(g3, "AI brief (save)", function() A.report("brief", "save") end, { color = T.good, tip = "BRIEF" })
+    K.button(g3, "AI brief (copy)", function() A.report("brief", "copy") end, { tip = "BRIEF" })
+    K.button(c3, "Export ALL files", A.exportAll, { color = T.accent, tip = "EXPORTALL" })
 
     -- Petunjuk mode
     local hint = K.card(stack, nil)

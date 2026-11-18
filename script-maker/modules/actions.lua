@@ -2,7 +2,7 @@
      Satu tempat untuk logika "klik tombol", jadi mode Simple dan Advanced memakai kode yang sama.
 
      Scan : scan() stopScan() clearResults()
-     Report: report("smart"|"full", "save"|"copy")  — auto-scan dulu kalau belum pernah SCAN
+     Report: report("smart"|"full"|"brief", "save"|"copy")  exportAll()  — auto-scan dulu kalau belum pernah SCAN
      Copy : copy("MECH"|"INDEX"|"PATHS"|"REMOTES"|"TREE"|"CONFIG")
      Runtime: setCapture(bool) setUIWatch(bool) setPassive(bool) clearRuntime()
      counts() → { scripts, calls, buttons, logs } ]]
@@ -79,6 +79,8 @@ return function(D)
                 section("REMOTES", B.remotes), section("TREE", B.tree),
                 section("CONFIG", B.config), section("DIAGNOSTICS", B.diagnostics),
             }
+        elseif kind == "brief" then
+            return section("BRIEF", B.brief)
         else
             parts = {
                 section("SNAPSHOT", B.snapshot), section("RUNTIME", B.runtime),
@@ -87,6 +89,8 @@ return function(D)
         end
         return table.concat(parts, "\n\n")
     end
+
+    local PREFIX = { full = "full", brief = "ai_brief", smart = "smart" }
 
     -- kind: "smart" | "full" ; how: "save" (file .txt) | "copy" (clipboard)
     function A.report(kind, how)
@@ -103,7 +107,7 @@ return function(D)
                 if how == "copy" then
                     O.copyText(text, kind .. " report")
                 else
-                    O.saveToFile(text, kind == "full" and "full" or "smart")
+                    O.saveToFile(text, PREFIX[kind] or "smart")
                 end
             end)
             S.reportBusy = false
@@ -137,6 +141,54 @@ return function(D)
         local text = item.build()
         O.copyText(text, item.label)
         log(("[COPY] %s: %d chars"):format(item.label, #text), COLOR.info, "copy")
+    end
+
+    -- ── Export ALL: banyak file terpisah, satu timestamp ────────────
+    function A.exportAll()
+        if S.reportBusy then say("A report is already being built…") return end
+        if type(writefile) ~= "function" then
+            say("Export ALL needs writefile (not available in this executor). Use Copy instead.")
+            return
+        end
+        S.reportBusy = true
+        task.spawn(function()
+            D.Log.safe("exportAll", function()
+                if not ensureScan() then
+                    log("[EXPORT] no scan results — scan-based files will be thin", COLOR.warn, "report")
+                end
+                local stamp = os.date("%Y%m%d_%H%M%S")
+                local jobs = {
+                    { "ai_brief", function() return buildText("brief") end },
+                    { "smart",    function() return buildText("smart") end },
+                    { "full",     function() return buildText("full") end },
+                    { "mechanics", function() return section("MECHANICS", B.mechanics) end },
+                    { "index",    function() return section("INDEX", B.index) end },
+                    { "paths",    pathsText },
+                    { "remotes",  function() return section("REMOTES", B.remotes) end },
+                    { "tree",     function() return section("TREE", B.tree) end },
+                    { "config",   function() return section("CONFIG", B.config) end },
+                }
+                local saved, failed = {}, {}
+                for i, job in ipairs(jobs) do
+                    say(("Export ALL… %d/%d %s"):format(i, #jobs, job[1]))
+                    local okB, text = D.Log.safe("export:" .. job[1], job[2])
+                    if okB and type(text) == "string" then
+                        local ok, fname = O.saveToFile(text, job[1], { stamp = stamp, quiet = true })
+                        if ok then saved[#saved + 1] = fname else failed[#failed + 1] = job[1] end
+                    else
+                        failed[#failed + 1] = job[1]
+                    end
+                    task.wait()
+                end
+                log(("[EXPORT] saved %d/%d files (stamp %s)"):format(#saved, #jobs, stamp), COLOR.ok, "report")
+                if #failed > 0 then log("[EXPORT] failed: " .. table.concat(failed, ", "), COLOR.err, "report") end
+                local cb = setclipboard or writeclipboard or toclipboard
+                if cb and #saved > 0 then pcall(cb, table.concat(saved, "\n")) end
+                say(("Export ALL done: %d files%s. Names copied."):format(#saved,
+                    #failed > 0 and (", " .. #failed .. " failed (see Log)") or ""))
+            end)
+            S.reportBusy = false
+        end)
     end
 
     -- ── Runtime recording ───────────────────────────────────────────

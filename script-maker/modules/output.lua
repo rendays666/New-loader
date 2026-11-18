@@ -30,20 +30,27 @@ return function(D)
         return ok
     end
 
-    function Out.saveToFile(text, prefix)
+    -- opts: { stamp = "YYYYMMDD_HHMMSS" (sama untuk Export ALL), quiet = true (jangan timpa clipboard/status) }
+    function Out.saveToFile(text, prefix, opts)
+        opts = opts or {}
         local sizeStr = D.Util.fmtSize(#text)
         if type(writefile) == "function" then
-            local fname = prefix .. "_" .. os.date("%Y%m%d_%H%M%S") .. ".txt"
+            local fname = prefix .. "_" .. (opts.stamp or os.date("%Y%m%d_%H%M%S")) .. ".txt"
             local ok, err = pcall(writefile, fname, text)
             if ok then
                 D.Log.write("[SAVE] ✓ " .. fname .. " (" .. sizeStr .. ")", COLOR.ok, "save")
+                if opts.quiet then return true, fname end
                 D.Log.write("[SAVE] folder: " .. workspacePath(), COLOR.info, "save")
                 local cb = clipboardFn()
                 if cb then pcall(cb, fname) end
                 D.UI.setStatus("Saved " .. fname)
-                return true
+                return true, fname
             end
             D.Log.write("[SAVE] ✗ writefile: " .. tostring(err), COLOR.err, "save")
+            if opts.quiet then return false end
+        elseif opts.quiet then
+            D.Log.write("[SAVE] ✗ writefile not available in this executor", COLOR.err, "save")
+            return false
         end
         local cb = clipboardFn()
         if cb and pcall(cb, text) then

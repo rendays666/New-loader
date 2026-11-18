@@ -116,4 +116,49 @@ return function(D)
         add(sep)
         return table.concat(out, "\n")
     end
+
+    -- Versi ringkas untuk AI BRIEF (wajib ada di akhir brief)
+    function D.Build.diagnosticsBrief()
+        local sep = string.rep("=", 62)
+        local out = { sep, "9. DIAGNOSTICS", sep }
+        local function add(s) out[#out + 1] = s end
+        local hs = D.Hook and D.Hook.status() or {}
+        add(("Version=%s  Executor=%s"):format(D.version, U.executorName()))
+        add(("capture=%s method=%s using=%s UI=%s RUN=%s"):format(tostring(S.capturing), tostring(S.captureMethod),
+            tostring(S.captureUsing), tostring(S.uiActive), tostring(S.passiveActive)))
+        add(("hook: HK1(namecall)=%s HK2(stealth)=%s namecallInstalled=%s HK2class=%s"):format(
+            tostring(S.hkActive), tostring(S.hk2Active), tostring(hs.namecallInstalled),
+            (hs.hk2Classes and #hs.hk2Classes > 0) and table.concat(hs.hk2Classes, "/") or "-"))
+        add("hook lastError: " .. tostring(hs.lastError))
+        local missing = {}
+        for _, c in ipairs(U.capabilities()) do
+            if not c.ok then missing[#missing + 1] = c.name end
+        end
+        add("executor missing: " .. (#missing > 0 and table.concat(missing, ", ") or "-"))
+        if D.Capture then
+            local st = D.Capture.stats
+            add(("queue: pending=%d enqueued=%d logged=%d deduped=%d ignored=%d dropped=%d errors=%d"):format(
+                D.Capture.pending(), st.enqueued, st.logged, st.deduped, st.ignored, st.dropped, st.errors))
+        end
+        local okN, bad = 0, {}
+        for _, name in ipairs(D.loadOrder or {}) do
+            local m = D.moduleStatus and D.moduleStatus[name]
+            if m and m.ok then okN = okN + 1 elseif m then bad[#bad + 1] = name end
+        end
+        add(("modules OK=%d failed=%s"):format(okN, #bad > 0 and table.concat(bad, ", ") or "none"))
+        add(("errors recorded: %d"):format(#D.Log.errors))
+        for i = math.max(1, #D.Log.errors - 2), #D.Log.errors do
+            local e = D.Log.errors[i]
+            add(("  [%d] %s: %s"):format(i, e.tag, e.msg:sub(1, 240):gsub("\n", " ")))
+        end
+        local lastLogs = {}
+        for i = math.max(1, #D.Log.entries - 7), #D.Log.entries do
+            local e = D.Log.entries[i]
+            lastLogs[#lastLogs + 1] = ("  %.1f [%s] %s"):format(e.t, e.tag, e.text:sub(1, 120))
+        end
+        add("last log: " .. (#lastLogs == 0 and "-" or ""))
+        for _, l in ipairs(lastLogs) do add(l) end
+        add(sep)
+        return table.concat(out, "\n")
+    end
 end

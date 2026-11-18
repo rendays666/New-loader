@@ -37,7 +37,7 @@ Tekan tombol **Mode** di header. Tab tambahan:
 | Scan | Pilih tempat yang di-scan (preset *Recommended*), opsi decompile/bytecode/core, daftar hasil + filter |
 | Actions | Remote spy: daftar panggilan, kode siap salin (3 gaya), **Replay**, **Block**, **Ignore**, pilih metode rekam |
 | Watch | Rekam tombol layar yang muncul + pesan server → client |
-| Export | Smart/Full report (simpan atau salin) dan potongan data (mechanics, index, paths, remotes, tree, config) |
+| Export | **Export ALL files** (9 file terpisah, 1 timestamp), **AI brief** (~15K karakter, dedup), Smart/Full report (simpan atau salin) dan potongan data (mechanics, index, paths, remotes, tree, config) |
 | Settings | Ganti mode, info executor, bantuan, unload |
 
 Tombol **?** di tiap fitur menjelaskan fungsinya. PC: klik kanan juga bisa. RightShift menyembunyikan window.

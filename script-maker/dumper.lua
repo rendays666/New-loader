@@ -14,7 +14,7 @@
     getgenv().DUMPER_LOADER_KEEP = true          -- panel tidak hilang otomatis saat sukses
 ]]
 
-local SCRIPT_VERSION = "15.1.0"
+local SCRIPT_VERSION = "15.2.0"
 
 local _env = (getgenv and getgenv()) or _G
 local BRANCH = (type(_env.DUMPER_BRANCH) == "string" and _env.DUMPER_BRANCH ~= "") and _env.DUMPER_BRANCH or "main"
@@ -28,7 +28,7 @@ local MODULE_ORDER = {
     "config", "state", "logger", "util", "codegen", "output",
     "runtime/capture", "runtime/hook", "runtime/ui_watch", "runtime/passive", "runtime/spy",
     "scanner",
-    "build/snapshot", "build/runtime_report", "build/reports", "build/mechanics",
+    "build/snapshot", "build/runtime_report", "build/reports", "build/mechanics", "build/brief_data", "build/brief",
     "actions",
     "ui/kit", "ui/frame", "ui/tooltip", "ui/logview",
     "ui/page_start", "ui/page_scan", "ui/page_capture", "ui/page_watch", "ui/page_export", "ui/page_settings",

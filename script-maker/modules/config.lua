@@ -116,6 +116,35 @@ return function(D)
             { id = "hk1",  text = "Namecall", desc = "Hooks __namecall (hookmetamethod). Fast, but some games detect it." },
         },
 
+        -- AI BRIEF (export ringkas ~15K karakter) — dipakai build/brief_data + build/brief
+        BRIEF = {
+            MAX_CHARS     = 15000,
+            MAX_ATTR_SCAN = 40000, -- batas jumlah instance yang dicek atributnya
+            MAX_CONFIG    = 400,   -- batas keamanan (game dengan ribuan Value)
+            OTHER_CONFIG  = 20,    -- nilai non-kunci yang tetap ditampilkan
+            TREE_MAX_KIDS = 20,
+            TREE_DEPTH    = { ReplicatedStorage = 3, StarterPlayer = 3, ReplicatedFirst = 2, StarterGui = 2,
+                              StarterPack = 2, Workspace = 1, Lighting = 1, Teams = 1 },
+            CONFIG_KEYS = {
+                "price", "cost", "cooldown", "cd", "damage", "dmg", "ratio", "rate", "limit", "max", "min",
+                "speed", "health", "hp", "range", "ammo", "mag", "reload", "delay", "duration", "spread",
+                "recoil", "rpm", "firerate", "multiplier", "reward", "xp", "cash", "coin", "money", "kill",
+                "point", "capture", "time", "count", "cap", "amount", "level", "burst", "radius", "force",
+                "power", "stamina", "regen", "heal", "sprint", "walk", "jump", "fire", "velocity", "pen",
+            },
+            SYSTEMS = {
+                { name = "Weapon",    kw = { "gun", "weapon", "fire", "reload", "ammo", "bullet", "damage", "shoot", "aim",
+                                              "recoil", "bayonet", "barrel", "hatchet", "knife", "flash", "pen" } },
+                { name = "Shop",      kw = { "shop", "purchase", "buy", "store", "price", "perk", "equipment" } },
+                { name = "Class",     kw = { "class", "loadout", "choose", "role" } },
+                { name = "Teleport",  kw = { "teleport", "spawn", "waypoint", "loadcharacter" } },
+                { name = "Votekick",  kw = { "votekick", "kick", "vote" } },
+                { name = "Inventory", kw = { "inventory", "backpack", "equip", "tool", "hotbar" } },
+                { name = "Heal",      kw = { "heal", "medic", "bandage", "health" } },
+                { name = "Grenade",   kw = { "grenade", "explosive", "frag", "mortar", "smoke" } },
+            },
+        },
+
         BTN_INFO = {
             SCAN    = { name = "Scan game", desc = "Reads the code of every script in the selected places.",
                         use = "Do this first. Most reports need scan results." },
@@ -144,6 +173,10 @@ return function(D)
                         use = "Check what breaks without it. Unblock to restore." },
             IGNORE  = { name = "Ignore remote", desc = "Hides this remote from the list (spammy remotes).",
                         use = "Reduce noise. 'Reset filters' brings them back." },
+            BRIEF   = { name = "AI brief", desc = "Compact export (about 15,000 characters): header, unique remotes with signatures, key config values, mechanics summary, tree, unique API surface, grouped UI, diagnostics.",
+                        use = "Best file to send to an AI. Identical scripts are collapsed, so it stays small." },
+            EXPORTALL = { name = "Export ALL files", desc = "Saves AI brief, Smart, Full, Mechanics, Index, Paths, Remotes, Tree and Config as separate .txt files in one go.",
+                          use = "One tap instead of exporting each report. Files are NOT merged." },
             TEMPLATE = { name = "Code template", desc = "Switches the generated code style: simple, advanced (pcall) or debug (prints).",
                          use = "Pick what you want to copy." },
         },
