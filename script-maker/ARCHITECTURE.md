@@ -48,6 +48,10 @@ Module hanya boleh memakai `D.*` dari module yang **di atasnya** di urutan load.
 | `ui/page_settings` | — | (Advanced) mode, info executor, bantuan, unload |
 | `bootstrap` | — | Start capture, pilih tab awal, banner boot |
 
+## Loader log
+
+`dumper.lua` punya panel log sendiri (bagian `LOADER LOG`) yang dibuat sebelum module apa pun diunduh. Tiap module dicatat sebagai `→ [i/N] nama` lalu `✓`/`✗`. Kegagalan HTTP mencatat alasan per jalur (HttpGet, HttpService, request). Objek `LL` tersedia di `D.LoaderLog` (`report(onlyErrors)`), dipakai tombol Settings → Copy loader log. Panel hanya bergantung pada Roblox API dasar, bukan pada `D.*`, supaya tetap jalan saat module gagal dimuat.
+
 ## Mode GUI
 
 - **Simple** (default): hanya tab Start + Log. Tiga langkah besar, tanpa istilah teknis.

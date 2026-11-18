@@ -33,6 +33,17 @@ return function(D)
     K.label(help, "• Tap the ? on any button for what it does. PC: right-click works too.", { size = 11, color = T.dim })
     K.label(help, "• RightShift (PC) hides or shows this window.", { size = 11, color = T.dim })
 
+    local ll = K.card(stack, "Loader log")
+    K.label(ll, "The log that was shown while Script Dumper was loading (versions, module sizes, errors). Send it when something fails to load.",
+        { size = 11, color = T.dim })
+    K.button(ll, "Copy loader log", function()
+        if D.LoaderLog then
+            D.Output.copyText(D.LoaderLog.report(false), "loader log")
+        else
+            UI.setStatus("No loader log available.")
+        end
+    end, { color = T.accent })
+
     local unload = K.card(stack, "Unload")
     K.label(unload, "Stops recording and removes this window. Hooks already installed stay in memory but become inactive.",
         { size = 11, color = T.dim })

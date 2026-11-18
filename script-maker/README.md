@@ -16,6 +16,18 @@ Tab **Start** punya tiga langkah:
 
 Tab **Log** menampilkan semua aktivitas dan error.
 
+## Loader log (debug saat execute)
+
+Begitu di-execute, panel **Loader log** muncul di kanan atas dan menampilkan tiap tahap secara realtime: `→ nama module`, lalu `✓ ukuran + waktu` atau `✗` beserta alasan error (HTTP per jalur, error compile dengan nomor baris `dumper/<module>:<baris>`, atau traceback runtime).
+
+- **Sukses**: judul hijau, panel hilang sendiri setelah 3 detik.
+- **Gagal**: panel tetap terbuka (merah). Tekan **Copy errors** atau **Copy all** dan kirim hasilnya. Log juga disimpan ke `workspace/Dumper_loader_log.txt`.
+- **Log: ON/OFF**: OFF mengecilkan panel jadi pill (`Loader log ✓ OK` / `✗ N errors`). Tap pill untuk membuka lagi. Pilihan diingat sampai game ditutup.
+- **Auto-hide**: matikan kalau panel tidak boleh hilang sendiri.
+- Setelah loading, log yang sama bisa disalin dari Advanced → Settings → *Copy loader log*.
+
+Opsi sebelum `loadstring`: `getgenv().DUMPER_LOADER_LOG = false` (matikan panel), `getgenv().DUMPER_LOADER_KEEP = true` (jangan hilang otomatis), `getgenv().DUMPER_BRANCH = "nama-branch"`.
+
 ## Mode Advanced
 
 Tekan tombol **Mode** di header. Tab tambahan:
