@@ -7,7 +7,7 @@
   di-copy. Kalau semua sukses, panel hilang sendiri (bisa dimatikan).
 ]]
 
-local SCRIPT_VERSION = "3.12.0"
+local SCRIPT_VERSION = "3.12.1"
 
 -- ═══ CONFIG LOG (EDIT DI SINI) ═════════════════════════════════════
 local CONFIG = {

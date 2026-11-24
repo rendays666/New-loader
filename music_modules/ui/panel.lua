@@ -407,12 +407,13 @@ return function(REN)
         end)
 
         -- ═══ CLOSE BUTTON (X) di luar, kanan atas GUI ═══════════════
+        -- Di luar panel, tepat di kanan-atas guinya (mengikuti drag/resize panel).
         local closeBtn = W.mk("TextButton", {
-            Size = UDim2.fromOffset(26, 26), Position = UDim2.new(1, -34, 0, 8),
+            Size = UDim2.fromOffset(24, 24), Position = UDim2.new(1, 6, 0, -12),
             BackgroundColor3 = Color3.fromRGB(200, 60, 60), Text = "✕",
-            TextColor3 = Color3.new(1, 1, 1), TextSize = 13,
+            TextColor3 = Color3.new(1, 1, 1), TextSize = 12,
             BorderSizePixel = 0, AutoButtonColor = false, ZIndex = 300,
-        }, gui)
+        }, panel)
         W.corner(closeBtn, 13)
 
         local confirmDlg = W.mk("Frame", {
