@@ -1,4 +1,4 @@
---[[ UI ROWS — baris lagu (nama, uploader, ID yang bisa disalin), filter, highlight ]]
+--[[ UI ROWS — baris lagu (nama, uploader, ID yang bisa disalin), filter, highlight, pagination ]]
 
 return function(REN)
     local W = REN.Widgets
@@ -12,10 +12,14 @@ return function(REN)
     local ID_W      = 82    -- lebar chip ID
     local ID_COLOR  = Color3.fromRGB(140, 195, 255)
     local SUB_COLOR = Color3.fromRGB(130, 140, 165)
+    local PAGE_SIZE = 20
 
     -- Factory: bangun manager untuk listFrame + searchBox
     REN.createRows = function(listFrame, searchBox)
         local rowsByIdx = {}
+        local built = {}        -- set index playlist yang sudah dibangun
+        local loadedCount = 0   -- jumlah entri cocok yang sudah dimuat
+        local filterText = ""
 
         -- Rating bisa diubah dari tempat lain (tombol di Now Playing):
         -- sinkronkan baris lagu yang sama.
@@ -28,6 +32,7 @@ return function(REN)
         end
 
         local function buildRow(idx, entry)
+            if rowsByIdx[idx] then return end
             local isCur = (entry == S.currentEntry)
             local row = W.mk("Frame", {
                 Size = UDim2.new(1, 0, 0, ROW_H), LayoutOrder = idx, BorderSizePixel = 0,
@@ -118,6 +123,7 @@ return function(REN)
                 row = row, playRow = playRow, entry = entry, assetId = assetId,
                 refreshRating = updateRatingUI,
             }
+            built[idx] = true
         end
 
         local function updateHighlights()
@@ -134,16 +140,37 @@ return function(REN)
             end
         end
 
-        -- Cari berdasarkan judul, uploader, atau ID lagu
-        local function applyFilter()
-            local txt = (searchBox.Text or ""):lower()
-            for _, d in pairs(rowsByIdx) do
-                local match = txt == ""
-                    or d.entry.name:lower():find(txt, 1, true) ~= nil
-                    or U.uploaderOf(d.entry):lower():find(txt, 1, true) ~= nil
-                    or d.assetId:find(txt, 1, true) ~= nil
-                d.row.Visible = match
+        local function isMatch(entry)
+            local txt = (filterText or ""):lower()
+            if txt == "" then return true end
+            local assetId = U.extractAssetId(entry.id)
+            return entry.name:lower():find(txt, 1, true) ~= nil
+                or U.uploaderOf(entry):lower():find(txt, 1, true) ~= nil
+                or (assetId and assetId:find(txt, 1, true) ~= nil)
+        end
+
+        local function countMatches()
+            local n = 0
+            for _, e in ipairs(S.playlist) do
+                if isMatch(e) then n = n + 1 end
             end
+            return n
+        end
+
+        local function loadMore()
+            local target = loadedCount + PAGE_SIZE
+            local count = 0
+            for idx, entry in ipairs(S.playlist) do
+                if isMatch(entry) then
+                    count = count + 1
+                    if count > loadedCount and count <= target then
+                        if not built[idx] then
+                            buildRow(idx, entry)
+                        end
+                    end
+                end
+            end
+            loadedCount = math.min(target, countMatches())
         end
 
         local function clearList()
@@ -151,33 +178,76 @@ return function(REN)
                 if c:IsA("GuiObject") then c:Destroy() end   -- UIListLayout/UIPadding tetap
             end
             rowsByIdx = {}
+            built = {}
+            loadedCount = 0
+        end
+
+        local function showEmpty(msg)
+            W.label(listFrame, {
+                Size = UDim2.new(1, 0, 0, 60), LayoutOrder = 1,
+                Text = msg, TextColor3 = SUB_COLOR, TextSize = 9,
+                TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
+            })
         end
 
         local function rebuildList()
             clearList()
-
+            filterText = searchBox.Text or ""
             if #S.playlist == 0 then
                 local msg = (S.viewMode == "mine")
                     and "Belum ada lagu yang kamu like.\nTekan 👍 di lagu mana pun,\nlalu buka lagi My Likes."
                     or "Playlist kosong."
-                W.label(listFrame, {
-                    Size = UDim2.new(1, 0, 0, 60), LayoutOrder = 1,
-                    Text = msg, TextColor3 = SUB_COLOR, TextSize = 9,
-                    TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
-                })
+                showEmpty(msg)
                 return
             end
+            if countMatches() == 0 then
+                showEmpty("Tidak ada hasil.")
+                return
+            end
+            loadMore()
+            updateHighlights()
+        end
 
-            for idx, entry in ipairs(S.playlist) do buildRow(idx, entry) end
-            applyFilter()
+        local function applyFilter()
+            filterText = searchBox.Text or ""
+            clearList()
+            if #S.playlist == 0 then
+                local msg = (S.viewMode == "mine")
+                    and "Belum ada lagu yang kamu like.\nTekan 👍 di lagu mana pun,\nlalu buka lagi My Likes."
+                    or "Playlist kosong."
+                showEmpty(msg)
+                return
+            end
+            if countMatches() == 0 then
+                showEmpty("Tidak ada hasil.")
+                return
+            end
+            loadMore()
             updateHighlights()
         end
 
         local function appendRowToUI(idx, entry)
-            buildRow(idx, entry)
-            applyFilter()
+            filterText = searchBox.Text or ""
+            if isMatch(entry) then
+                if not built[idx] then
+                    buildRow(idx, entry)
+                end
+            end
             updateHighlights()
         end
+
+        -- Load more saat scroll mendekati bawah
+        listFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+            if loadedCount >= countMatches() then return end
+            local canvasSize = listFrame.AbsoluteCanvasSize.Y
+            local viewport = listFrame.AbsoluteSize.Y
+            if canvasSize <= viewport then return end
+            local pos = listFrame.CanvasPosition.Y
+            if pos + viewport >= canvasSize - 40 then
+                loadMore()
+                updateHighlights()
+            end
+        end)
 
         return {
             rebuildList      = rebuildList,

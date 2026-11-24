@@ -406,6 +406,76 @@ return function(REN)
             drag = nil
         end)
 
+        -- ═══ CLOSE BUTTON (X) di luar, kanan atas GUI ═══════════════
+        local closeBtn = W.mk("TextButton", {
+            Size = UDim2.fromOffset(26, 26), Position = UDim2.new(1, -34, 0, 8),
+            BackgroundColor3 = Color3.fromRGB(200, 60, 60), Text = "✕",
+            TextColor3 = Color3.new(1, 1, 1), TextSize = 13,
+            BorderSizePixel = 0, AutoButtonColor = false, ZIndex = 300,
+        }, gui)
+        W.corner(closeBtn, 13)
+
+        local confirmDlg = W.mk("Frame", {
+            Size = UDim2.fromOffset(250, 108), Position = UDim2.new(0.5, -125, 0.5, -54),
+            BackgroundColor3 = Color3.fromRGB(25, 28, 42), BorderSizePixel = 0,
+            Visible = false, ZIndex = 400,
+        }, gui)
+        W.corner(confirmDlg, 10)
+        W.mk("UIStroke", {Color = Color3.fromRGB(220, 80, 80), Thickness = 1.5}, confirmDlg)
+        W.label(confirmDlg, {
+            Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(8, 6),
+            Text = "Close music program?", TextColor3 = Color3.fromRGB(240, 240, 250),
+            Font = Enum.Font.GothamBold, TextSize = 12, ZIndex = 401,
+        })
+        W.label(confirmDlg, {
+            Size = UDim2.new(1, -16, 0, 26), Position = UDim2.fromOffset(8, 30),
+            Text = "Stop music and restore game sounds?",
+            TextColor3 = Color3.fromRGB(180, 180, 200), TextSize = 9,
+            TextWrapped = true, ZIndex = 401,
+        })
+        local yesBtn = W.button(confirmDlg, {
+            Size = UDim2.fromOffset(96, 24), Position = UDim2.new(0, 12, 1, -32),
+            BackgroundColor3 = Color3.fromRGB(200, 60, 60), Text = "Yes, close",
+            TextSize = 9, ZIndex = 401,
+        }, 6)
+        local noBtn = W.button(confirmDlg, {
+            Size = UDim2.fromOffset(96, 24), Position = UDim2.new(1, -108, 1, -32),
+            BackgroundColor3 = Color3.fromRGB(60, 65, 80), Text = "Cancel",
+            TextSize = 9, ZIndex = 401,
+        }, 6)
+
+        local function shutdownMusic()
+            pcall(function()
+                for s, v in pairs(S.savedVols or {}) do
+                    if s and s.Parent then pcall(function() s.Volume = v end) end
+                end
+                local env = (getgenv and getgenv()) or _G
+                if type(env.REN_MusicSavedVols) == "table" then
+                    for s, v in pairs(env.REN_MusicSavedVols) do
+                        if s and s.Parent then pcall(function() s.Volume = v end) end
+                    end
+                    env.REN_MusicSavedVols = nil
+                end
+                if S.musicSound and S.musicSound.Parent then
+                    pcall(function() S.musicSound:Stop() end)
+                    S.musicSound:Destroy()
+                    S.musicSound = nil
+                end
+                if gui and gui.Parent then gui:Destroy() end
+            end)
+        end
+
+        closeBtn.MouseButton1Click:Connect(function()
+            confirmDlg.Visible = true
+        end)
+        yesBtn.MouseButton1Click:Connect(function()
+            confirmDlg.Visible = false
+            shutdownMusic()
+        end)
+        noBtn.MouseButton1Click:Connect(function()
+            confirmDlg.Visible = false
+        end)
+
         -- ═══ INITIAL BUILD ══════════════════════════════════════════
         rows.rebuildList()
         refreshViewBtn()
