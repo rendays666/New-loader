@@ -5,7 +5,7 @@
     {
       "id": "centaura",
       "name": "Centaura",
-      "scriptUrl": "https://raw.githubusercontent.com/rendays666/centaura/main/main.lua",
+      "scriptUrl": "https://raw.githubusercontent.com/rendays666/centaura/main/Centaura.lua",
       "description": "auto win centaura",
       "imageUrl": "",
       "placeIds": [8735521924]
