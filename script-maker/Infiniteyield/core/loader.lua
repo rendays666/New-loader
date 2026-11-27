@@ -10,6 +10,9 @@
 -- Setiap file di commands/ mengembalikan tabel:
 --   { name = "fly", aliases = {"fly"}, fn = function(args, speaker) ... end }
 --
+-- Helper global (notify, getstring, waypointmover, ...) ada di core/ dan
+-- di-require lebih dulu lewat core/index.lua.
+--
 -- Loader hanya mendaftarkan. Cara memanggil command tetap milik program utama
 -- (misalnya untuk mengecek alias, lalu memanggil entry.fn(args, speaker)).
 
@@ -60,9 +63,18 @@ function Loader.get(name)
 	return Loader.commands[realName]
 end
 
---- Require commands/index.lua, lalu daftarkan semua modulnya.
+--- Require core/index.lua (helper global), lalu commands/index.lua.
 -- @param commandsFolder Instance folder `commands` di Roblox
-function Loader.loadAll(commandsFolder)
+-- @param coreFolder     Instance folder `core` (opsional; default: sibling `core`)
+function Loader.loadAll(commandsFolder, coreFolder)
+	coreFolder = coreFolder or commandsFolder.Parent:FindFirstChild("core")
+	if coreFolder then
+		local coreIndex = coreFolder:FindFirstChild("index")
+		if coreIndex then
+			require(coreIndex)
+		end
+	end
+
 	local modules = require(commandsFolder:WaitForChild("index"))
 
 	for _, module in ipairs(modules) do

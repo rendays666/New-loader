@@ -2,6 +2,7 @@ Infinite Yield split report
 ============================
 Source        : original/source.txt
 Output        : commands
+Core          : core
 Commands found: 464
 Files written : 464
 Skipped addcmd: 2
@@ -476,12 +477,646 @@ Skipped addcmd (bukan string literal / dinamis):
   line 5234: argumen nama bukan string literal
   line 6496: argumen nama bukan string literal
 
+Core declarations:
+  globals.lua  : 197 (fungsi 51, variabel 146)
+  args.lua     :  15 (fungsi 14, variabel 1)
+  notify.lua   :   7 (fungsi 1, variabel 6)
+  waypoint.lua :  11 (fungsi 5, variabel 6)
+  Total        : 230
+
+Dependencies per command (global yang dipakai; `?` = tidak ditemukan, `(local)` = top-level local):
+  addalias.lua                  → FindInTable, aliases?, cmds, customAlias, notify, refreshaliases, updatesaves
+  removealias.lua               → aliases?, customAlias, notify, refreshaliases, updatesaves
+  clraliases.lua                → notify, refreshaliases, updatesaves
+  discord.lua                   → HttpService, everyClipboard, httprequest, notify, toClipboard
+  keepiy.lua                    → notify, queueteleport, updatesaves
+  unkeepiy.lua                  → notify, queueteleport, updatesaves
+  togglekeepiy.lua              → KeepInfYield?, notify, queueteleport, updatesaves
+  serverinfo.lua                → MarketplaceService, PlaceId, Players, ScaledHolder, canOpenServerinfo (local), currentShade1, currentShade2, currentText1, dragGUI, getcustomasset (local), randomString, shade1, shade2, text1, toClipboard
+  jobid.lua                     → toClipboard
+  notifyjobid.lua               → JobId, notify
+  joinjobid.lua                 → PlaceId, Players, TeleportService, notify
+  breakloops.lua                → -
+  gametp.lua                    → TeleportService
+  rejoin.lua                    → JobId, PlaceId, Players, TeleportService, notify, parseBoolean, queueteleport, teleportRespawnHandler
+  inviteprompt.lua              → ExperienceService, JobId, PlaceId, Players, getPlayer
+  autorejoin.lua                → GuiService, execCmd, notify
+  serverhop.lua                 → HttpService, JobId, PlaceId, Players, TeleportService, notify
+  exit.lua                      → -
+  noclip.lua                    → RunService, execCmd, floatName?, noclipParts, notify
+  unnoclip.lua                  → noclipConnection, noclipParts, notify
+  togglenoclip.lua              → execCmd, isClipped
+  fly.lua                       → IsOnMobile?, NOFLY, isNumber, mobilefly, sFLY
+  flyspeed.lua                  → isNumber
+  unfly.lua                     → IsOnMobile?, NOFLY, unmobilefly
+  vfly.lua                      → IsOnMobile?, NOFLY, isNumber, mobilefly, sFLY
+  togglevfly.lua                → FLYING, IsOnMobile?, NOFLY, mobilefly, sFLY, unmobilefly
+  vflyspeed.lua                 → isNumber
+  qefly.lua                     → -
+  togglefly.lua                 → FLYING, IsOnMobile?, NOFLY, mobilefly, sFLY, unmobilefly
+  cframefly.lua                 → CFloop?, CFspeed, RunService, isNumber
+  uncframefly.lua               → CFloop?
+  cframeflyspeed.lua            → isNumber
+  float.lua                     → RunService, UserInputService, beganListener (local), endListener (local), floatDied?, floatName?, floatingFunc (local), getRoot, notify, randomString
+  unfloat.lua                   → beganListener (local), endListener (local), floatDied?, floatName?, floatingFunc (local), notify
+  togglefloat.lua               → execCmd, floating
+  swim.lua                      → RunService, UserInputService, getRoot, oldgrav (local), swimming
+  unswim.lua                    → gravReset?, oldgrav (local), swimbeat (local)
+  toggleswim.lua                → execCmd, swimming
+  setwaypoint.lua               → AllWaypoints, PlaceId, WayPoints, getRoot, getstring, notify, refreshwaypoints, updatesaves
+  waypointpos.lua               → AllWaypoints, PlaceId, WayPoints, getstring, notify, refreshwaypoints, updatesaves
+  waypoints.lua                 → AliasesFrame, CMDsF, KeybindsFrame, PluginsFrame, PositionsFrame, Settings, SettingsHolder, maximizeHolder
+  showwaypoints.lua             → WayPoints, execCmd, pWayPoints, waypointParts
+  hidewaypoints.lua             → waypointParts
+  waypoint.lua                  → getstring, notify, waypointmover
+  tweenspeed.lua                → -
+  tweenwaypoint.lua             → getstring, notify, waypointmover
+  walktowaypoint.lua            → getstring, notify, waypointmover
+  pathfindwalktowaypoint.lua    → getstring, notify, waypointmover
+  deletewaypoint.lua            → getstring, wprm
+  clearwaypoints.lua            → notify, refreshwaypoints, updatesaves
+  cleargamewaypoints.lua        → notify, wprm
+  enable.lua                    → StarterGui, coreGuiTypeNames (local)
+  disable.lua                   → StarterGui, coreGuiTypeNames (local)
+  showguis.lua                  → FindInTable, PlayerGui, invisGUIS (local)
+  unshowguis.lua                → invisGUIS (local)
+  hideguis.lua                  → FindInTable, PlayerGui, hiddenGUIS (local)
+  unhideguis.lua                → hiddenGUIS (local)
+  guidelete.lua                 → UserInputService, deleteGuisAtPos, notify
+  unguidelete.lua               → deleteGuiInput (local), notify
+  hideiy.lua                    → On, StayOpen, minimizeHolder, notify
+  showiy.lua                    → On, maximizeHolder, minimizeHolder, wasStayOpen (local)
+  rec.lua                       → COREGUI
+  screenshot.lua                → COREGUI
+  togglefs.lua                  → GuiService
+  inspect.lua                   → GuiService, Players, getPlayer
+  savegame.lua                  → notify, saveinstance?
+  savelogs.lua                  → CleanFileName, LogService, MarketplaceService, PlaceId, notify, readfile, writefileCooldown, writefileExploit
+  clearerror.lua                → GuiService
+  antigameplaypaused.lua        → COREGUI, networkPaused?
+  unantigameplaypaused.lua      → networkPaused?
+  clientantikick.lua            → Players, getnamecallmethod, hookfunction, hookmetamethod, lp?, newcclosure, notify
+  clientantiteleport.lua        → TeleportService, allow_rj, checkcaller, getnamecallmethod, hookfunction, hookmetamethod, newcclosure, notify
+  allowrejoin.lua               → allow_rj, notify
+  cancelteleport.lua            → TeleportService
+  volume.lua                    → -
+  antilag.lua                   → Lighting, RunService, execCmd
+  unantilag.lua                 → antiLagConn?
+  setfpscap.lua                 → RunService, execCmd, notify
+  removefpscap.lua              → fpscaploop?
+  notify.lua                    → getstring, notify
+  lastcommand.lua               → cmdHistory, execCmd
+  esp.lua                       → CHMSenabled, ESP, Players, notify
+  espteam.lua                   → CHMSenabled, ESP, Players, notify
+  noesp.lua                     → COREGUI
+  esptransparency.lua           → CHMSenabled, ESPenabled, execCmd, updatesaves
+  partesp.lua                   → FindInTable, espParts (local), espTransparency?, getstring, partAdded
+  unpartesp.lua                 → FindInTable, GetInTable, espParts (local), getstring, partEspTrigger (local)
+  chams.lua                     → CHMS, ESPenabled, Players, notify
+  nochams.lua                   → COREGUI, Players
+  locate.lua                    → Locate, Players, getPlayer
+  nolocate.lua                  → COREGUI, Players, getPlayer
+  view.lua                      → Players, StopFreecam, getPlayer, getRoot, notify, viewChanged?, viewDied?, viewing
+  viewpart.lua                  → StopFreecam, getstring
+  unview.lua                    → StopFreecam, notify, viewChanged?, viewDied?, viewing
+  freecam.lua                   → StartFreecam
+  freecampos.lua                → StartFreecam
+  freecamwaypoint.lua           → StartFreecam, WayPoints, getstring, pWayPoints
+  freecamgoto.lua               → Players, StartFreecam, getPlayer, getRoot
+  unfreecam.lua                 → StopFreecam
+  freecamspeed.lua              → isNumber
+  notifyfreecamposition.lua     → fcRunning, notify
+  copyfreecamposition.lua       → fcRunning, toClipboard
+  gotocamera.lua                → getRoot
+  tweengotocamera.lua           → TweenService, getRoot, tweenSpeed
+  fov.lua                       → isNumber
+  lookat.lua                    → Players, getPlayer, preMaxZoom (local), preMinZoom (local)
+  fixcam.lua                    → StopFreecam, execCmd
+  enableshiftlock.lua           → notify
+  firstp.lua                    → -
+  thirdp.lua                    → -
+  noclipcam.lua                 → getgc, notify, setconstant?
+  maxzoom.lua                   → -
+  minzoom.lua                   → -
+  camdistance.lua               → -
+  unlockws.lua                  → -
+  lockws.lua                    → -
+  delete.lua                    → getstring, notify
+  deleteclass.lua               → getstring, notify
+  chardelete.lua                → getstring, notify
+  chardeleteclass.lua           → getstring, notify
+  deletevelocity.lua            → -
+  deleteinvisparts.lua          → -
+  invisibleparts.lua            → shownParts (local)
+  uninvisibleparts.lua          → shownParts (local)
+  btools.lua                    → randomString
+  f3x.lua                       → -
+  partpath.lua                  → selectPart
+  antiafk.lua                   → antiAfkCon (local), getconnections, notify
+  datalimit.lua                 → Services
+  replicationlag.lua            → -
+  noprompts.lua                 → COREGUI
+  showprompts.lua               → COREGUI
+  promptr6.lua                  → promptNewRig
+  promptr15.lua                 → promptNewRig
+  wallwalk.lua                  → -
+  age.lua                       → Players, getPlayer, notify
+  chatage.lua                   → Players, chatMessage, getPlayer
+  joindate.lua                  → Players, getPlayer, notify
+  chatjoindate.lua              → Players, chatMessage, getPlayer
+  copyname.lua                  → Players, getPlayer, toClipboard
+  userid.lua                    → Players, getPlayer, notify
+  copyplaceid.lua               → PlaceId, toClipboard
+  copygameid.lua                → toClipboard
+  copyid.lua                    → Players, getPlayer, toClipboard
+  creatorid.lua                 → GroupService, notify
+  copycreatorid.lua             → GroupService, notify, toClipboard
+  setcreatorid.lua              → GroupService, notify
+  appearanceid.lua              → Players, getPlayer, notify
+  copyappearanceid.lua          → Players, getPlayer, toClipboard
+  agecheck.lua                  → Players, getPlayer, notify
+  norender.lua                  → RunService
+  render.lua                    → RunService
+  2022materials.lua             → MaterialService, notify, sethidden
+  un2022materials.lua           → MaterialService, notify, sethidden
+  goto.lua                      → Players, breakVelocity, getPlayer, parseBoolean
+  tweengoto.lua                 → Players, TweenService, breakVelocity, getPlayer, getRoot, plrtweening, tweenSpeed
+  vehiclegoto.lua               → Players, getPlayer, getRoot, notify
+  pulsetp.lua                   → Players, execCmd, getPlayer, getRoot
+  vehiclenoclip.lua             → execCmd, vnoclipParts
+  vehicleclip.lua               → execCmd, vnoclipParts
+  togglevnoclip.lua             → execCmd, isClipped
+  clientbring.lua               → Players, getPlayer, getRoot
+  loopbring.lua                 → FindInTable, Players, bringT (local), getPlayer, getRoot, isNumber
+  unloopbring.lua               → Players, bringT (local), getPlayer
+  walkto.lua                    → Players, getPlayer, getRoot, stopwpping, walkto (local)
+  pathfindwalkto.lua            → PathService, Players, getPlayer, getRoot, stopwpping, walkto (local)
+  unwalkto.lua                  → -
+  orbit.lua                     → Players, RunService, breakVelocity, execCmd, getPlayer, getRoot, notify
+  unorbit.lua                   → notify, orbit1?, orbit2?, orbit3?
+  freeze.lua                    → Players, getPlayer
+  thaw.lua                      → Players, floatName?, getPlayer
+  anchor.lua                    → getRoot
+  unanchor.lua                  → getRoot
+  loopoof.lua                   → Players
+  unloopoof.lua                 → -
+  muteboombox.lua               → Players, check_nrf, getPlayer
+  unmuteboombox.lua             → Players, check_nrf, getPlayer
+  killsounds.lua                → check_nrf
+  loopkillsounds.lua            → check_nrf, execCmd
+  unloopkillsounds.lua          → foreverkillsounds?
+  stopsounds.lua                → check_nrf
+  pausesounds.lua               → check_nrf
+  playsounds.lua                → check_nrf
+  reset.lua                     → -
+  freezeanims.lua               → -
+  unfreezeanims.lua             → -
+  respawn.lua                   → respawn
+  refresh.lua                   → refresh
+  god.lua                       → char?, pos?
+  invisible.lua                 → Lighting, Respawn?, RunService, TurnVisible?, execCmd, invisRunning, notify
+  visible.lua                   → TurnVisible?
+  toggleinvis.lua               → execCmd, invisRunning
+  toolinvisible.lua             → Players, loc?
+  strengthen.lua                → -
+  weaken.lua                    → -
+  unweaken.lua                  → -
+  breakvelocity.lua             → delay?
+  jpower.lua                    → isNumber
+  maxslopeangle.lua             → isNumber
+  gravity.lua                   → isNumber, oldgrav (local)
+  hipheight.lua                 → isNumber, r15
+  dance.lua                     → danceTrack?, execCmd, r15
+  undance.lua                   → danceTrack?
+  defemote.lua                  → getstring
+  nolimbs.lua                   → r15
+  noarms.lua                    → r15
+  nolegs.lua                    → r15
+  sit.lua                       → -
+  lay.lua                       → -
+  sitwalk.lua                   → r15, sitWalkBackups
+  unsitwalk.lua                 → r15, sitWalkBackups
+  nosit.lua                     → -
+  unnosit.lua                   → -
+  jump.lua                      → -
+  infjump.lua                   → UserInputService, infJump (local), infJumpDebounce
+  uninfjump.lua                 → infJump (local)
+  flyjump.lua                   → UserInputService, flyjump (local)
+  unflyjump.lua                 → flyjump (local)
+  autojump.lua                  → HumanModCons (local), RunService, getRoot
+  unautojump.lua                → HumanModCons (local)
+  edgejump.lua                  → HumanModCons (local), RunService, getRoot
+  unedgejump.lua                → HumanModCons (local)
+  bunnyhop.lua                  → RunService, execCmd
+  unbunnyhop.lua                → bHOP?
+  team.lua                      → Teams, firetouchinterest, getRoot, getstring, notify
+  nobgui.lua                    → -
+  loopnobgui.lua                → -
+  unloopnobgui.lua              → charPartTrigger?
+  spasm.lua                     → Spasm?, SpasmAnim?, notify, r15
+  unspasm.lua                   → Spasm?, SpasmAnim?
+  headthrow.lua                 → notify, r15
+  hug.lua                       → notify, r15
+  unhug.lua                     → -
+  animation.lua                 → anim2track, execCmd, isNumber, parseBoolean
+  emote.lua                     → humanoid?
+  noanim.lua                    → -
+  reanim.lua                    → -
+  animspeed.lua                 → -
+  copyanimation.lua             → Players, getPlayer
+  copyanimationid.lua           → MarketplaceService, Players, getPlayer, notify, toClipboard
+  stopanimations.lua            → -
+  refreshanimations.lua         → notify
+  allowcustomanim.lua           → StarterPlayer, execCmd
+  unallowcustomanim.lua         → StarterPlayer, execCmd
+  loopanimation.lua             → -
+  tpposition.lua                → getRoot
+  tweentpposition.lua           → TweenService, getRoot, tweenSpeed
+  offset.lua                    → -
+  tweenoffset.lua               → TweenService, breakVelocity, getRoot, tweenSpeed
+  clickteleport.lua             → Players, notify
+  mouseteleport.lua             → IYMouse, breakVelocity, getRoot
+  tptool.lua                    → IYMouse, breakVelocity, getRoot
+  tweentptool.lua               → IYMouse, TweenService, breakVelocity, getRoot, tweenSpeed
+  thru.lua                      → getRoot, parseBoolean
+  clickdelete.lua               → Players, notify
+  getposition.lua               → Players, getPlayer, getRoot, notify
+  copyposition.lua              → Players, getPlayer, getRoot, notify, toClipboard
+  walktopos.lua                 → -
+  speed.lua                     → isNumber
+  spoofspeed.lua                → checkcaller, hookmetamethod, isNumber, notify
+  loopspeed.lua                 → HumanModCons (local), isNumber
+  unloopspeed.lua               → HumanModCons (local)
+  spoofjumppower.lua            → checkcaller, hookmetamethod, isNumber, notify
+  loopjumppower.lua             → HumanModCons (local), isNumber
+  unloopjumppower.lua           → HumanModCons (local)
+  tools.lua                     → Lighting, ReplicatedStorage, notify
+  notools.lua                   → -
+  deleteselectedtool.lua        → -
+  console.lua                   → StarterGui
+  oldconsole.lua                → notify, printconsole?, printoutput?
+  explorer.lua                  → notify
+  moondex.lua                   → notify
+  remotespy.lua                 → notify
+  simplespy.lua                 → notify
+  audiologger.lua               → notify
+  animationlogger.lua           → notify
+  loopgoto.lua                  → Players, getPlayer, getRoot, isNumber, loopgoto (local)
+  unloopgoto.lua                → -
+  headsit.lua                   → Players, RunService, getPlayer, getRoot, headSit?
+  chat.lua                      → chatMessage, getstring
+  parrot.lua                    → -
+  unparrot.lua                  → -
+  vsay.lua                      → getstring
+  spam.lua                      → chatMessage, getstring, spamspeed
+  nospam.lua                    → -
+  whisper.lua                   → Players, chatMessage, getPlayer, getstring
+  pmspam.lua                    → FindInTable, Players, chatMessage, getPlayer, getstring, pmspamming, spamspeed
+  nopmspam.lua                  → Players, getPlayer, pmspamming
+  spamspeed.lua                 → isNumber
+  bubblechat.lua                → ChatService, TextChatService, isLegacyChat
+  unbubblechat.lua              → ChatService, TextChatService, isLegacyChat
+  chatwindow.lua                → TextChatService
+  unchatwindow.lua              → TextChatService
+  darkchat.lua                  → TextChatService
+  blockhead.lua                 → -
+  blockhats.lua                 → -
+  blocktool.lua                 → -
+  creeper.lua                   → r15
+  bang.lua                      → Players, RunService, bang?, bangAnim?, bangDied?, bangLoop?, execCmd, getPlayer, getRoot, getTorso, r15
+  unbang.lua                    → bang?, bangAnim?, bangDied?, bangLoop?
+  carpet.lua                    → Players, RunService, carpet?, carpetAnim?, carpetDied?, carpetLoop?, execCmd, getPlayer, getRoot, notify, r15
+  uncarpet.lua                  → carpet?, carpetAnim?, carpetDied?, carpetLoop?
+  friend.lua                    → Players, getPlayer
+  unfriend.lua                  → Players, getPlayer
+  bringpart.lua                 → getRoot, getstring
+  bringpartclass.lua            → getRoot, getstring
+  gotopart.lua                  → getRoot, getstring, gotopartDelay
+  tweengotopart.lua             → TweenService, getRoot, getstring, gotopartDelay, tweenSpeed
+  gotopartclass.lua             → getRoot, getstring, gotopartDelay
+  tweengotopartclass.lua        → TweenService, getRoot, getstring, gotopartDelay, tweenSpeed
+  gotomodel.lua                 → getRoot, getstring, gotopartDelay
+  tweengotomodel.lua            → TweenService, getRoot, getstring, gotopartDelay, tweenSpeed
+  gotopartdelay.lua             → isNumber
+  noclickdetectorlimits.lua     → -
+  fireclickdetectors.lua        → getstring, notify
+  noproximitypromptlimits.lua   → -
+  fireproximityprompts.lua      → getstring, notify
+  instantproximityprompts.lua   → ProximityPromptService, execCmd, notify
+  uninstantproximityprompts.lua → PromptButtonHoldBegan (local)
+  disableproximityprompts.lua   → Workspace?, disabledPrompts (local), execCmd
+  enableproximityprompts.lua    → disabledPrompts (local), promptConnection (local)
+  notifyping.lua                → notify
+  grabtools.lua                 → grabtoolsFunc?, notify
+  nograbtools.lua               → grabtoolsFunc?, notify
+  removespecifictool.lua        → RunService, getstring, specifictoolremoval (local)
+  unremovespecifictool.lua      → getstring, specifictoolremoval (local)
+  clearremovespecifictool.lua   → specifictoolremoval (local)
+  viewbackpack.lua              → Players, formatUsername, getPlayer, notify
+  light.lua                     → getRoot
+  unlight.lua                   → parseBoolean
+  deletelighting.lua            → -
+  copytools.lua                 → Players, getPlayer
+  naked.lua                     → -
+  noface.lua                    → -
+  spawnpoint.lua                → getRoot, notify, spawnpos?
+  nospawnpoint.lua              → notify
+  flashback.lua                 → getRoot, lastDeath (local)
+  hatspin.lua                   → RunService, execCmd, randomString
+  unhatspin.lua                 → spinhats
+  clearhats.lua                 → RunService, execCmd, firetouchinterest, getRoot, notify
+  split.lua                     → notify, r15
+  nilchar.lua                   → -
+  unnilchar.lua                 → -
+  noroot.lua                    → Players
+  replaceroot.lua               → getRoot
+  clearcharappearance.lua       → -
+  equiptools.lua                → -
+  unequiptools.lua              → -
+  dupetools.lua                 → GetHandleTools (local), firetouchinterest
+  touchinterests.lua            → firetouchinterest, getRoot, getstring, notify
+  fullbright.lua                → Lighting, isfbac
+  loopfullbright.lua            → Lighting, RunService, brightLoop?, execCmd
+  unloopfullbright.lua          → Lighting, brightLoop?, isfbac, oldfbsets
+  ambient.lua                   → Lighting, orig_ambient
+  unambient.lua                 → Lighting, orig_ambient, orig_outdoor_ambient
+  day.lua                       → Lighting
+  night.lua                     → Lighting
+  time.lua                      → Lighting, isNumber
+  nofog.lua                     → Lighting
+  brightness.lua                → Lighting
+  dncycle.lua                   → Lighting, execCmd, notify
+  undncycle.lua                 → daynightthread, notify
+  globalshadows.lua             → Lighting
+  unglobalshadows.lua           → Lighting
+  restorelighting.lua           → Lighting, origsettings
+  stun.lua                      → -
+  unstun.lua                    → -
+  norotate.lua                  → -
+  unnorotate.lua                → -
+  enablestate.lua               → -
+  disablestate.lua              → -
+  drophats.lua                  → -
+  deletehats.lua                → -
+  droptools.lua                 → -
+  droppabletools.lua            → -
+  reach.lua                     → execCmd
+  boxreach.lua                  → execCmd
+  unreach.lua                   → currentGripPos (local), currentToolSize (local)
+  grippos.lua                   → -
+  usetools.lua                  → -
+  logs.lua                      → Toggle, Toggle_2, logs
+  chatlogs.lua                  → Toggle, chat, currentShade2, currentShade3, join, logs, selectChat, selectJoin, shade2, shade3
+  joinlogs.lua                  → Toggle_2, chat, currentShade2, currentShade3, join, logs, selectChat, selectJoin, shade2, shade3
+  chatlogswebhook.lua           → httprequest, notify, updatesaves
+  fling.lua                     → execCmd, getRoot, randomString
+  unfling.lua                   → execCmd, flingDied?, getRoot
+  togglefling.lua               → execCmd, flinging
+  flyfling.lua                  → execCmd, vehicleflyspeed
+  unflyfling.lua                → execCmd
+  toggleflyfling.lua            → execCmd, flinging
+  walkfling.lua                 → RunService, execCmd, getRoot
+  unwalkfling.lua               → execCmd
+  togglewalkfling.lua           → execCmd, walkflinging
+  invisfling.lua                → RunService, getRoot, sFLY
+  clickfor.lua                  → -
+  unclickfor.lua                → -
+  clicktype.lua                 → -
+  antifling.lua                 → Players, RunService, antifling?
+  unantifling.lua               → antifling?
+  toggleantifling.lua           → antifling?, execCmd
+  handlekill.lua                → Players, firetouchinterest, getPlayer, getRoot, notify
+  teleportwalk.lua              → RunService, isNumber, parseBoolean, tpwalkStack, tpwalking?
+  unteleportwalk.lua            → tpwalking?
+  infpathtools.lua              → RunService, execCmd, notify, tools
+  uninfpathtools.lua            → infinitypathtool (local)
+  spin.lua                      → getRoot, isNumber
+  unspin.lua                    → getRoot
+  xray.lua                      → xray
+  unxray.lua                    → xray
+  togglexray.lua                → xray, xrayEnabled
+  loopxray.lua                  → RunService, xray, xrayLoop?
+  unloopxray.lua                → xray, xrayLoop?
+  walltp.lua                    → getRoot, r15
+  unwalltp.lua                  → walltpTouch (local)
+  autoclick.lua                 → UserInputService, cancelAutoClick?, execCmd, isNumber, mouse1press?, mouse1release?, notify
+  unautoclick.lua               → cancelAutoClick?
+  mousesensitivity.lua          → UserInputService
+  hovername.lua                 → IYMouse, ScaledHolder, execCmd, nameBox (local), nbSelection (local), randomString
+  unhovername.lua               → nameBox (local), nbSelection (local), nbUpdateFunc?
+  headsize.lua                  → Players, getPlayer
+  hitbox.lua                    → Players, getPlayer, getRoot
+  hitboxes.lua                  → -
+  unhitboxes.lua                → -
+  stareat.lua                   → Players, RunService, getPlayer, getRoot, stareLoop?
+  unstareat.lua                 → stareLoop?
+  rolewatch.lua                 → RolewatchData, getstring, notify
+  rolewatchstop.lua             → RolewatchData, notify
+  rolewatchleave.lua            → RolewatchData, notify
+  staffwatch.lua                → Players, formatUsername, getStaffRole, notify, staffwatchjoin?
+  unstaffwatch.lua              → notify, staffwatchjoin?
+  findfriendgroups.lua          → StarterGui, createPopup, notify, playerGroups (local)
+  removeterrain.lua             → -
+  clearnilinstances.lua         → notify
+  destroyheight.lua             → isNumber
+  antivoid.lua                  → OrgDestroyHeight, RunService, execCmd, getRoot, notify
+  unantivoid.lua                → antivoidloop?, notify
+  fakeout.lua                   → OrgDestroyHeight, antivoidWasEnabled, antivoidloop?, execCmd, getRoot
+  trip.lua                      → isNumber, tripov
+  removeads.lua                 → -
+  scare.lua                     → Players, getPlayer, getRoot
+  alignmentkeys.lua             → StarterGui, UserInputService
+  unalignmentkeys.lua           → StarterGui, alignmentKeys?, alignmentKeysEmotes?
+  ctrllock.lua                  → -
+  unctrllock.lua                → -
+  listento.lua                  → Players, SoundService, execCmd, getPlayer, getRoot
+  unlistento.lua                → SoundService, listentoChar?
+  jerk.lua                      → r15
+  guiscale.lua                  → Holder, Scale, defaultGuiScale, guiScale?, isNumber, updatesaves
+  muteallvoices.lua             → Services
+  unmuteallvoices.lua           → Services
+  mutevc.lua                    → Players, Services, getPlayer
+  unmutevc.lua                  → Players, Services, getPlayer
+  phonebook.lua                 → SocialService, notify
+  freezeunanchored.lua          → badnames (local), execCmd, frozenParts
+  thawunanchored.lua            → freezingua (local), frozenParts
+  tpunanchored.lua              → badnames (local), frozenParts, getPlayer
+  autokeypress.lua              → UserInputService, cancelAutoKeyPress, execCmd, isNumber, keycodeMap, keypress?, keyrelease?, notify
+  unautokeypress.lua            → cancelAutoKeyPress
+  addplugin.lua                 → addPlugin, getstring
+  removeplugin.lua              → deletePlugin, getstring
+  reloadplugin.lua              → addPlugin, deletePlugin, getstring
+  addallplugins.lua             → PluginsTable?, addPlugin, isfolder, notify
+  removecmd.lua                 → removecmd
+  debug.lua                     → parseBoolean
+
+UNRESOLVED (dipakai tapi tidak ada deklarasi top-level):
+  CFloop                   ← cframefly.lua, uncframefly.lua
+  CatchedPluginLoad        ← LoadPlugin
+  Clipboard                ← everyClipboard
+  IsOnMobile               ← defaultGuiScale, fly.lua, togglefly.lua, togglevfly.lua, unfly.lua, vfly.lua
+  KeepInfYield             ← togglekeepiy.lua, updatesaves
+  Keypress                 ← Input
+  MousePan                 ← Input
+  NAV_ADJ_SPEED            ← Input
+  NAV_KEYBOARD_SPEED       ← Input
+  NAV_SHIFT_MUL            ← Input
+  PAN_MOUSE_SPEED          ← Input
+  PluginsTable             ← LoadPlugin, addPlugin, addallplugins.lua, deletePlugin, refreshplugins, updatesaves
+  Respawn                  ← invisible.lua
+  Spasm                    ← spasm.lua, unspasm.lua
+  SpasmAnim                ← spasm.lua, unspasm.lua
+  TurnVisible              ← invisible.lua, respawn, visible.lua
+  Workspace                ← disableproximityprompts.lua
+  Zero                     ← Input
+  aliases                  ← addalias.lua, refreshaliases, removealias.lua, updatesaves
+  alignmentKeys            ← unalignmentkeys.lua
+  alignmentKeysEmotes      ← unalignmentkeys.lua
+  antiLagConn              ← unantilag.lua
+  antifling                ← antifling.lua, toggleantifling.lua, unantifling.lua
+  antivoidloop             ← fakeout.lua, unantivoid.lua
+  bHOP                     ← unbunnyhop.lua
+  bang                     ← bang.lua, unbang.lua
+  bangAnim                 ← bang.lua, unbang.lua
+  bangDied                 ← bang.lua, unbang.lua
+  bangLoop                 ← bang.lua, unbang.lua
+  binds                    ← updatesaves
+  brightLoop               ← loopfullbright.lua, unloopfullbright.lua
+  cancelAutoClick          ← autoclick.lua, unautoclick.lua
+  cargs                    ← getstring
+  carpet                   ← carpet.lua, uncarpet.lua
+  carpetAnim               ← carpet.lua, uncarpet.lua
+  carpetDied               ← carpet.lua, uncarpet.lua
+  carpetLoop               ← carpet.lua, uncarpet.lua
+  char                     ← god.lua
+  charPartTrigger          ← unloopnobgui.lua
+  danceTrack               ← dance.lua, undance.lua
+  delay                    ← breakvelocity.lua
+  dt                       ← Input
+  espTransparency          ← CHMS, ESP, Locate, partAdded, partesp.lua, updatesaves
+  flingDied                ← unfling.lua
+  floatDied                ← float.lua, unfloat.lua
+  floatName                ← float.lua, noclip.lua, thaw.lua, unfloat.lua
+  flyKeyDown               ← NOFLY, sFLY
+  flyKeyUp                 ← NOFLY, sFLY
+  foreverkillsounds        ← unloopkillsounds.lua
+  fpscaploop               ← removefpscap.lua
+  get_gc_objects           ← getgc
+  get_namecall_method      ← getnamecallmethod
+  get_signal_cons          ← getconnections
+  grabtoolsFunc            ← grabtools.lua, nograbtools.lua
+  gravReset                ← unswim.lua
+  guiScale                 ← guiscale.lua, updatesaves
+  handlePluginError        ← LoadPlugin
+  headSit                  ← headsit.lua
+  http                     ← httprequest
+  humanoid                 ← emote.lua
+  jLogsEnabled             ← updatesaves
+  keyboard                 ← Input
+  keypress                 ← autokeypress.lua
+  keyrelease               ← autokeypress.lua
+  listentoChar             ← unlistento.lua
+  loc                      ← toolinvisible.lua
+  logsEnabled              ← updatesaves
+  logsWebhook              ← updatesaves
+  lp                       ← clientantikick.lua
+  mouse                    ← Input
+  mouse1press              ← autoclick.lua
+  mouse1release            ← autoclick.lua
+  navSpeed                 ← Input
+  nbUpdateFunc             ← unhovername.lua
+  networkPaused            ← antigameplaypaused.lua, unantigameplaypaused.lua
+  orbit1                   ← unorbit.lua
+  orbit2                   ← unorbit.lua
+  orbit3                   ← unorbit.lua
+  pos                      ← god.lua
+  prefix                   ← updatesaves
+  printconsole             ← oldconsole.lua
+  printoutput              ← oldconsole.lua
+  saveinstance             ← savegame.lua
+  set_clipboard            ← everyClipboard
+  set_hidden_prop          ← sethidden
+  set_hidden_property      ← sethidden
+  setconstant              ← noclipcam.lua
+  spawnpos                 ← spawnpoint.lua
+  staffwatchjoin           ← staffwatch.lua, unstaffwatch.lua
+  stareLoop                ← stareat.lua, unstareat.lua
+  tpwalking                ← teleportwalk.lua, unteleportwalk.lua
+  viewChanged              ← unview.lua, view.lua
+  viewDied                 ← unview.lua, view.lua
+  xrayLoop                 ← loopxray.lua, unloopxray.lua
+
+Top-level local (tidak diekstrak; hanya terlihat di file aslinya):
+  Camera                   ← StartFreecam
+  GetClosestPlayerFromCursor ← SpecialPlayerCases
+  GetHandleTools           ← dupetools.lua
+  HumanModCons             ← autojump.lua, edgejump.lua, loopjumppower.lua, loopspeed.lua, unautojump.lua, unedgejump.lua, unloopjumppower.lua, unloopspeed.lua
+  INPUT_PRIORITY           ← Input
+  PlayerState              ← StartFreecam, StopFreecam
+  PromptButtonHoldBegan    ← uninstantproximityprompts.lua
+  StepFreecam              ← StartFreecam
+  antiAfkCon               ← antiafk.lua
+  badnames                 ← freezeunanchored.lua, tpunanchored.lua
+  beganListener            ← float.lua, unfloat.lua
+  booly                    ← parseBoolean
+  bringT                   ← loopbring.lua, unloopbring.lua
+  canOpenServerinfo        ← serverinfo.lua
+  cooldown                 ← writefileCooldown
+  coreGuiTypeNames         ← disable.lua, enable.lua
+  currentGripPos           ← unreach.lua
+  currentToolSize          ← unreach.lua
+  deleteGuiInput           ← unguidelete.lua
+  disabledPrompts          ← disableproximityprompts.lua, enableproximityprompts.lua
+  endListener              ← float.lua, unfloat.lua
+  espParts                 ← partAdded, partesp.lua, unpartesp.lua
+  floatingFunc             ← float.lua, unfloat.lua
+  flyjump                  ← flyjump.lua, unflyjump.lua
+  freezingua               ← thawunanchored.lua
+  getcustomasset           ← createPopup, eventEditor, serverinfo.lua
+  gyroHandlerName          ← mobilefly, unmobilefly
+  hiddenGUIS               ← hideguis.lua, unhideguis.lua
+  infJump                  ← infjump.lua, uninfjump.lua
+  infinitypathtool         ← uninfpathtools.lua
+  invisGUIS                ← showguis.lua, unshowguis.lua
+  lastBreakTime            ← execCmd
+  lastCmds                 ← execCmd
+  lastDeath                ← flashback.lua
+  loopgoto                 ← loopgoto.lua
+  mobileflyhand            ← unmobilefly
+  nameBox                  ← hovername.lua, unhovername.lua
+  nbSelection              ← hovername.lua, unhovername.lua
+  notifiedRespectFiltering ← check_nrf
+  notifyCount              ← notify
+  oldgrav                  ← gravity.lua, swim.lua, unswim.lua
+  panSpring                ← StartFreecam
+  partEspTrigger           ← partAdded, unpartesp.lua
+  playerGroups             ← findfriendgroups.lua
+  preMaxZoom               ← lookat.lua
+  preMinZoom               ← lookat.lua
+  promptConnection         ← enableproximityprompts.lua
+  selected                 ← selectPart
+  selectionBox             ← selectPart
+  shownParts               ← invisibleparts.lua, uninvisibleparts.lua
+  specifictoolremoval      ← clearremovespecifictool.lua, removespecifictool.lua, unremovespecifictool.lua
+  split                    ← execCmd
+  swimbeat                 ← unswim.lua
+  updateCommandCanvasSize  ← IndexContents
+  velSpring                ← StartFreecam
+  velocityHandlerName      ← mobilefly, unmobilefly
+  walkto                   ← pathfindwalkto.lua, walkto.lua
+  walltpTouch              ← unwalltp.lua
+  wasStayOpen              ← showiy.lua
+  waypointwalkto           ← waypointmover
+
+Blok gagal di-parse (bracket/blok tidak seimbang):
+  (tidak ada)
+
 Warnings:
-  (tidak ada blok tidak seimbang)
+  (tidak ada)
 
 luac -p check:
-  OK        : 450
-  Luau-only : 16
+  OK        : 454
+  Luau-only : 17
   Gagal     : 0
   [luau] float.lua: /usr/bin/luac: commands/float.lua:30: syntax error near '-'
   [luau] showwaypoints.lua: /usr/bin/luac: commands/showwaypoints.lua:34: syntax error near 'end'
@@ -499,3 +1134,4 @@ luac -p check:
   [luau] mutevc.lua: /usr/bin/luac: commands/mutevc.lua:11: syntax error near 'end'
   [luau] unmutevc.lua: /usr/bin/luac: commands/unmutevc.lua:11: syntax error near 'end'
   [luau] tpunanchored.lua: /usr/bin/luac: commands/tpunanchored.lua:17: syntax error near 'end'
+  [luau] waypoint.lua: /usr/bin/luac: core/waypoint.lua:92: ')' expected near ':'
