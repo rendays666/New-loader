@@ -1,0 +1,501 @@
+Infinite Yield split report
+============================
+Source        : original/source
+Output        : commands
+Commands found: 464
+Files written : 464
+Skipped addcmd: 2
+
+Files:
+  addalias.lua                     line 6560   aliases: -
+  removealias.lua                  line 6576   aliases: -
+  clraliases.lua                   line 6593   aliases: -
+  discord.lua                      line 6601   aliases: support, help
+  keepiy.lua                       line 6625   aliases: -
+  unkeepiy.lua                     line 6635   aliases: -
+  togglekeepiy.lua                 line 6645   aliases: -
+  serverinfo.lua                   line 6655   aliases: info, sinfo
+  jobid.lua                        line 6982   aliases: copyjobid
+  notifyjobid.lua                  line 6986   aliases: -
+  joinjobid.lua                    line 6990   aliases: jjid, jid
+  breakloops.lua                   line 7003   aliases: break
+  gametp.lua                       line 7007   aliases: gameteleport
+  rejoin.lua                       line 7032   aliases: rj
+  inviteprompt.lua                 line 7054   aliases: -
+  autorejoin.lua                   line 7072   aliases: autorj
+  serverhop.lua                    line 7079   aliases: shop
+  exit.lua                         line 7100   aliases: shutdown, leave
+  noclip.lua                       line 7107   aliases: -
+  unnoclip.lua                     line 7127   aliases: clip
+  togglenoclip.lua                 line 7142   aliases: -
+  fly.lua                          line 7328   aliases: -
+  flyspeed.lua                     line 7341   aliases: flysp
+  unfly.lua                        line 7348   aliases: nofly, novfly, unvehiclefly, novehiclefly, unvfly
+  vfly.lua                         line 7352   aliases: vehiclefly
+  togglevfly.lua                   line 7365   aliases: -
+  vflyspeed.lua                    line 7373   aliases: vflysp, vehicleflyspeed, vehicleflysp
+  qefly.lua                        line 7380   aliases: flyqe
+  togglefly.lua                    line 7388   aliases: -
+  cframefly.lua                    line 7397   aliases: cfly
+  uncframefly.lua                  line 7422   aliases: uncfly
+  cframeflyspeed.lua               line 7431   aliases: cflyspeed
+  float.lua                        line 7442   aliases: platform
+  unfloat.lua                      line 7505   aliases: nofloat, unplatform, noplatform
+  togglefloat.lua                  line 7521   aliases: -
+  swim.lua                         line 7532   aliases: -
+  unswim.lua                       line 7557   aliases: noswim
+  toggleswim.lua                   line 7577   aliases: -
+  setwaypoint.lua                  line 7585   aliases: swp, setwp, spos, saveposition, savepos
+  waypointpos.lua                  line 7599   aliases: wpp, setwaypointposition, setpos, setwaypointpos
+  waypoints.lua                    line 7617   aliases: positions
+  showwaypoints.lua                line 7632   aliases: showwp, showwps
+  hidewaypoints.lua                line 7668   aliases: hidewp, hidewps
+  waypoint.lua                     line 7800   aliases: wp, lpos, loadposition, loadpos
+  tweenspeed.lua                   line 7807   aliases: tspeed
+  tweenwaypoint.lua                line 7814   aliases: twp
+  walktowaypoint.lua               line 7820   aliases: wtwp
+  pathfindwalktowaypoint.lua       line 7826   aliases: pathfindwalktowp
+  deletewaypoint.lua               line 7862   aliases: dwp, dpos, deleteposition, deletepos
+  clearwaypoints.lua               line 7867   aliases: cwp, clearpositions, cpos, clearpos
+  cleargamewaypoints.lua           line 7876   aliases: cgamewp
+  enable.lua                       line 7893   aliases: -
+  disable.lua                      line 7907   aliases: -
+  showguis.lua                     line 7922   aliases: -
+  unshowguis.lua                   line 7933   aliases: -
+  hideguis.lua                     line 7941   aliases: -
+  unhideguis.lua                   line 7952   aliases: -
+  guidelete.lua                    line 7971   aliases: -
+  unguidelete.lua                  line 7982   aliases: noguidelete
+  hideiy.lua                       line 7988   aliases: -
+  showiy.lua                       line 8000   aliases: unhideiy
+  rec.lua                          line 8012   aliases: record
+  screenshot.lua                   line 8016   aliases: scrnshot
+  togglefs.lua                     line 8020   aliases: togglefullscreen
+  inspect.lua                      line 8024   aliases: examine
+  savegame.lua                     line 8031   aliases: saveplace
+  savelogs.lua                     line 8041   aliases: saveclogs, saveconsolelogs
+  clearerror.lua                   line 8080   aliases: clearerrors
+  antigameplaypaused.lua           line 8084   aliases: -
+  unantigameplaypaused.lua         line 8094   aliases: -
+  clientantikick.lua               line 8098   aliases: antikick
+  clientantiteleport.lua           line 8121   aliases: antiteleport
+  allowrejoin.lua                  line 8173   aliases: allowrj
+  cancelteleport.lua               line 8178   aliases: canceltp
+  volume.lua                       line 8182   aliases: vol
+  antilag.lua                      line 8186   aliases: boostfps, lowgraphics
+  unantilag.lua                    line 8236   aliases: unboostfps, unlowgraphics, highgraphics
+  setfpscap.lua                    line 8243   aliases: fpscap, maxfps
+  removefpscap.lua                 line 8265   aliases: unfpscap
+  notify.lua                       line 8272   aliases: -
+  lastcommand.lua                  line 8276   aliases: lastcmd
+  esp.lua                          line 8282   aliases: -
+  espteam.lua                      line 8295   aliases: -
+  noesp.lua                        line 8308   aliases: unesp, unespteam
+  esptransparency.lua              line 8317   aliases: -
+  partesp.lua                      line 8345   aliases: -
+  unpartesp.lua                    line 8368   aliases: nopartesp
+  chams.lua                        line 8391   aliases: -
+  nochams.lua                      line 8404   aliases: unchams
+  locate.lua                       line 8416   aliases: -
+  nolocate.lua                     line 8423   aliases: unlocate
+  view.lua                         line 8443   aliases: spectate
+  viewpart.lua                     line 8466   aliases: viewp
+  unview.lua                       line 8478   aliases: unspectate
+  freecam.lua                      line 8752   aliases: fcam, fc
+  freecampos.lua                   line 8756   aliases: fcpos, fcp, freecamposition, fcposition
+  freecamwaypoint.lua              line 8762   aliases: fcwp
+  freecamgoto.lua                  line 8784   aliases: fcgoto, freecamtp, fctp
+  unfreecam.lua                    line 8791   aliases: nofreecam, unfc, nofc
+  freecamspeed.lua                 line 8795   aliases: fcspeed
+  notifyfreecamposition.lua        line 8802   aliases: notifyfcpos
+  copyfreecamposition.lua          line 8810   aliases: copyfcpos
+  gotocamera.lua                   line 8818   aliases: gotocam, tocam
+  tweengotocamera.lua              line 8822   aliases: tweengotocam, tgotocam, ttocam
+  fov.lua                          line 8826   aliases: -
+  lookat.lua                       line 8835   aliases: -
+  fixcam.lua                       line 8855   aliases: restorecam
+  enableshiftlock.lua              line 8869   aliases: enablesl, shiftlock
+  firstp.lua                       line 8878   aliases: -
+  thirdp.lua                       line 8882   aliases: -
+  noclipcam.lua                    line 8886   aliases: nccam
+  maxzoom.lua                      line 8906   aliases: -
+  minzoom.lua                      line 8910   aliases: -
+  camdistance.lua                  line 8914   aliases: -
+  unlockws.lua                     line 8927   aliases: unlockworkspace
+  lockws.lua                       line 8935   aliases: lockworkspace
+  delete.lua                       line 8943   aliases: remove
+  deleteclass.lua                  line 8952   aliases: removeclass, deleteclassname, removeclassname, dc
+  chardelete.lua                   line 8961   aliases: charremove, cd
+  chardeleteclass.lua              line 8970   aliases: charremoveclass, chardeleteclassname, charremoveclassname, cdc
+  deletevelocity.lua               line 8979   aliases: dv, removevelocity, removeforces
+  deleteinvisparts.lua             line 8987   aliases: deleteinvisibleparts, dip
+  invisibleparts.lua               line 8996   aliases: invisparts
+  uninvisibleparts.lua             line 9007   aliases: uninvisparts
+  btools.lua                       line 9014   aliases: -
+  f3x.lua                          line 9023   aliases: fex
+  partpath.lua                     line 9027   aliases: partname
+  antiafk.lua                      line 9032   aliases: antiidle
+  datalimit.lua                    line 9051   aliases: -
+  replicationlag.lua               line 9058   aliases: backtrack
+  noprompts.lua                    line 9064   aliases: nopurchaseprompts
+  showprompts.lua                  line 9068   aliases: showpurchaseprompts
+  promptr6.lua                     line 9083   aliases: -
+  promptr15.lua                    line 9087   aliases: -
+  wallwalk.lua                     line 9091   aliases: walkonwalls
+  age.lua                          line 9095   aliases: -
+  chatage.lua                      line 9105   aliases: -
+  joindate.lua                     line 9116   aliases: jd
+  chatjoindate.lua                 line 9131   aliases: cjd
+  copyname.lua                     line 9147   aliases: copyuser
+  userid.lua                       line 9155   aliases: id
+  copyplaceid.lua                  line 9163   aliases: placeid
+  copygameid.lua                   line 9167   aliases: gameid
+  copyid.lua                       line 9171   aliases: copyuserid
+  creatorid.lua                    line 9179   aliases: creator
+  copycreatorid.lua                line 9189   aliases: copycreator
+  setcreatorid.lua                 line 9200   aliases: setcreator
+  appearanceid.lua                 line 9211   aliases: aid
+  copyappearanceid.lua             line 9219   aliases: caid
+  agecheck.lua                     line 9227   aliases: -
+  norender.lua                     line 9240   aliases: -
+  render.lua                       line 9244   aliases: -
+  2022materials.lua                line 9248   aliases: use2022materials
+  un2022materials.lua              line 9256   aliases: unuse2022materials
+  goto.lua                         line 9264   aliases: to
+  tweengoto.lua                    line 9294   aliases: tgoto, tto, tweento
+  vehiclegoto.lua                  line 9328   aliases: vgoto, vtp, vehicletp
+  pulsetp.lua                      line 9351   aliases: ptp
+  vehiclenoclip.lua                line 9370   aliases: vnoclip
+  vehicleclip.lua                  line 9393   aliases: vclip, unvnoclip, unvehiclenoclip
+  togglevnoclip.lua                line 9403   aliases: -
+  clientbring.lua                  line 9407   aliases: cbring
+  loopbring.lua                    line 9421   aliases: -
+  unloopbring.lua                  line 9455   aliases: noloopbring
+  walkto.lua                       line 9464   aliases: follow
+  pathfindwalkto.lua               line 9499   aliases: pathfindfollow
+  unwalkto.lua                     line 9569   aliases: nowalkto, unfollow, nofollow
+  orbit.lua                        line 9574   aliases: -
+  unorbit.lua                      line 9605   aliases: -
+  freeze.lua                       line 9613   aliases: fr
+  thaw.lua                         line 9629   aliases: unfreeze, unfr
+  anchor.lua                       line 9644   aliases: -
+  unanchor.lua                     line 9648   aliases: -
+  loopoof.lua                      line 9653   aliases: -
+  unloopoof.lua                    line 9666   aliases: -
+  muteboombox.lua                  line 9678   aliases: mutebb
+  unmuteboombox.lua                line 9699   aliases: unmutebb
+  killsounds.lua                   line 9715   aliases: destroysounds, nosounds
+  loopkillsounds.lua               line 9724   aliases: lksounds
+  unloopkillsounds.lua             line 9734   aliases: unlksounds
+  stopsounds.lua                   line 9742   aliases: -
+  pausesounds.lua                  line 9751   aliases: -
+  playsounds.lua                   line 9760   aliases: -
+  reset.lua                        line 9769   aliases: -
+  freezeanims.lua                  line 9778   aliases: -
+  unfreezeanims.lua                line 9786   aliases: -
+  respawn.lua                      line 9794   aliases: -
+  refresh.lua                      line 9798   aliases: re
+  god.lua                          line 9802   aliases: -
+  invisible.lua                    line 9828   aliases: invis
+  visible.lua                      line 9949   aliases: vis, uninvisible
+  toggleinvis.lua                  line 9953   aliases: -
+  toolinvisible.lua                line 9957   aliases: toolinvis, tinvis
+  strengthen.lua                   line 9996   aliases: -
+  weaken.lua                       line 10008  aliases: -
+  unweaken.lua                     line 10020  aliases: unstrengthen
+  breakvelocity.lua                line 10028  aliases: -
+  jpower.lua                       line 10043  aliases: jumppower, jp
+  maxslopeangle.lua                line 10054  aliases: msa
+  gravity.lua                      line 10061  aliases: grav
+  hipheight.lua                    line 10068  aliases: hheight
+  dance.lua                        line 10075  aliases: -
+  undance.lua                      line 10088  aliases: nodance
+  defemote.lua                     line 10093  aliases: -
+  nolimbs.lua                      line 10101  aliases: rlimbs
+  noarms.lua                       line 10125  aliases: rarms
+  nolegs.lua                       line 10145  aliases: rlegs
+  sit.lua                          line 10165  aliases: -
+  lay.lua                          line 10169  aliases: laydown
+  sitwalk.lua                      line 10180  aliases: -
+  unsitwalk.lua                    line 10218  aliases: -
+  nosit.lua                        line 10246  aliases: -
+  unnosit.lua                      line 10250  aliases: -
+  jump.lua                         line 10254  aliases: -
+  infjump.lua                      line 10260  aliases: infinitejump
+  uninfjump.lua                    line 10273  aliases: uninfinitejump, noinfjump, noinfinitejump
+  flyjump.lua                      line 10279  aliases: -
+  unflyjump.lua                    line 10286  aliases: noflyjump
+  autojump.lua                     line 10291  aliases: ajump
+  unautojump.lua                   line 10314  aliases: noautojump, noajump, unajump
+  edgejump.lua                     line 10319  aliases: ejump
+  unedgejump.lua                   line 10349  aliases: noedgejump, noejump, unejump
+  bunnyhop.lua                     line 10354  aliases: bhop
+  unbunnyhop.lua                   line 10372  aliases: unbhop
+  team.lua                         line 10379  aliases: -
+  nobgui.lua                       line 10405  aliases: unbgui, nobillboardgui, unbillboardgui, noname, rohg
+  loopnobgui.lua                   line 10413  aliases: loopunbgui, loopnobillboardgui, loopunbillboardgui, loopnoname, looprohg
+  unloopnobgui.lua                 line 10428  aliases: unloopunbgui, unloopnobillboardgui, unloopunbillboardgui, unloopnoname, unlooprohg
+  spasm.lua                        line 10434  aliases: -
+  unspasm.lua                      line 10448  aliases: nospasm
+  headthrow.lua                    line 10453  aliases: -
+  hug.lua                          line 10466  aliases: -
+  unhug.lua                        line 10481  aliases: -
+  animation.lua                    line 10502  aliases: anim
+  emote.lua                        line 10547  aliases: em
+  noanim.lua                       line 10552  aliases: -
+  reanim.lua                       line 10556  aliases: -
+  animspeed.lua                    line 10560  aliases: -
+  copyanimation.lua                line 10569  aliases: copyanim, copyemote
+  copyanimationid.lua              line 10591  aliases: copyanimid, copyemoteid
+  stopanimations.lua               line 10626  aliases: stopanims, stopanim
+  refreshanimations.lua            line 10636  aliases: refreshanimation, refreshanims, refreshanim
+  allowcustomanim.lua              line 10650  aliases: allowcustomanimations
+  unallowcustomanim.lua            line 10655  aliases: unallowcustomanimations
+  loopanimation.lua                line 10660  aliases: loopanim
+  tpposition.lua                   line 10668  aliases: tppos
+  tweentpposition.lua              line 10677  aliases: ttppos
+  offset.lua                       line 10686  aliases: -
+  tweenoffset.lua                  line 10691  aliases: toffset
+  clickteleport.lua                line 10700  aliases: -
+  mouseteleport.lua                line 10705  aliases: mousetp
+  tptool.lua                       line 10714  aliases: teleporttool
+  tweentptool.lua                  line 10728  aliases: tweenteleporttool, ttptool, twtptool
+  thru.lua                         line 10771  aliases: -
+  clickdelete.lua                  line 10787  aliases: -
+  getposition.lua                  line 10793  aliases: getpos, notifypos, notifyposition
+  copyposition.lua                 line 10807  aliases: copypos
+  walktopos.lua                    line 10821  aliases: walktoposition
+  speed.lua                        line 10829  aliases: ws, walkspeed
+  spoofspeed.lua                   line 10843  aliases: spoofws, spoofwalkspeed
+  loopspeed.lua                    line 10866  aliases: loopws
+  unloopspeed.lua                  line 10889  aliases: unloopws
+  spoofjumppower.lua               line 10894  aliases: spoofjp
+  loopjumppower.lua                line 10917  aliases: loopjp, loopjpower
+  unloopjumppower.lua              line 10941  aliases: unloopjp, unloopjpower
+  tools.lua                        line 10955  aliases: gears
+  notools.lua                      line 10977  aliases: rtools, clrtools, removetools, deletetools, dtools
+  deleteselectedtool.lua           line 10990  aliases: dst
+  console.lua                      line 10998  aliases: -
+  oldconsole.lua                   line 11002  aliases: -
+  explorer.lua                     line 11026  aliases: dex
+  moondex.lua                      line 11031  aliases: mdex
+  remotespy.lua                    line 11036  aliases: rspy, cobalt, cspy
+  simplespy.lua                    line 11042  aliases: sspy
+  audiologger.lua                  line 11049  aliases: alogger
+  animationlogger.lua              line 11054  aliases: animlogger
+  loopgoto.lua                     line 11060  aliases: -
+  unloopgoto.lua                   line 11090  aliases: noloopgoto
+  headsit.lua                      line 11094  aliases: -
+  chat.lua                         line 11109  aliases: say
+  parrot.lua                       line 11115  aliases: -
+  unparrot.lua                     line 11119  aliases: -
+  vsay.lua                         line 11123  aliases: -
+  spam.lua                         line 11131  aliases: -
+  nospam.lua                       line 11139  aliases: unspam
+  whisper.lua                      line 11143  aliases: pm
+  pmspam.lua                       line 11155  aliases: -
+  nopmspam.lua                     line 11175  aliases: unpmspam
+  spamspeed.lua                    line 11188  aliases: -
+  bubblechat.lua                   line 11195  aliases: -
+  unbubblechat.lua                 line 11203  aliases: nobubblechat
+  chatwindow.lua                   line 11211  aliases: -
+  unchatwindow.lua                 line 11215  aliases: nochatwindow
+  darkchat.lua                     line 11219  aliases: -
+  blockhead.lua                    line 11249  aliases: -
+  blockhats.lua                    line 11253  aliases: -
+  blocktool.lua                    line 11263  aliases: -
+  creeper.lua                      line 11275  aliases: -
+  bang.lua                         line 11294  aliases: rape
+  unbang.lua                       line 11325  aliases: unrape
+  carpet.lua                       line 11334  aliases: -
+  uncarpet.lua                     line 11362  aliases: nocarpet
+  friend.lua                       line 11371  aliases: -
+  unfriend.lua                     line 11378  aliases: -
+  bringpart.lua                    line 11385  aliases: -
+  bringpartclass.lua               line 11393  aliases: bpc
+  gotopart.lua                     line 11402  aliases: topart
+  tweengotopart.lua                line 11415  aliases: tgotopart, ttopart
+  gotopartclass.lua                line 11428  aliases: gpc
+  tweengotopartclass.lua           line 11441  aliases: tgpc
+  gotomodel.lua                    line 11454  aliases: tomodel
+  tweengotomodel.lua               line 11467  aliases: tgotomodel, ttomodel
+  gotopartdelay.lua                line 11480  aliases: -
+  noclickdetectorlimits.lua        line 11487  aliases: nocdlimits, removecdlimits
+  fireclickdetectors.lua           line 11495  aliases: firecd, firecds
+  noproximitypromptlimits.lua      line 11516  aliases: nopplimits, removepplimits
+  fireproximityprompts.lua         line 11524  aliases: firepp
+  instantproximityprompts.lua      line 11546  aliases: instantpp
+  uninstantproximityprompts.lua    line 11558  aliases: uninstantpp
+  disableproximityprompts.lua      line 11567  aliases: disablepp
+  enableproximityprompts.lua       line 11588  aliases: enablepp
+  notifyping.lua                   line 11604  aliases: ping
+  grabtools.lua                    line 11608  aliases: -
+  nograbtools.lua                  line 11629  aliases: ungrabtools
+  removespecifictool.lua           line 11638  aliases: -
+  unremovespecifictool.lua         line 11654  aliases: -
+  clearremovespecifictool.lua      line 11664  aliases: -
+  viewbackpack.lua                 line 11671  aliases: viewbp, checktools, viewtools, toolview, seetools
+  light.lua                        line 11699  aliases: -
+  unlight.lua                      line 11710  aliases: nolight
+  deletelighting.lua               line 11722  aliases: dlighting, removelighting
+  copytools.lua                    line 11730  aliases: -
+  naked.lua                        line 11743  aliases: -
+  noface.lua                       line 11751  aliases: removeface
+  spawnpoint.lua                   line 11759  aliases: spawn
+  nospawnpoint.lua                 line 11766  aliases: nospawn, removespawnpoint
+  flashback.lua                    line 11771  aliases: diedtp
+  hatspin.lua                      line 11782  aliases: spinhats
+  unhatspin.lua                    line 11822  aliases: unspinhats
+  clearhats.lua                    line 11844  aliases: cleanhats
+  split.lua                        line 11888  aliases: -
+  nilchar.lua                      line 11896  aliases: -
+  unnilchar.lua                    line 11902  aliases: nonilchar
+  noroot.lua                       line 11908  aliases: removeroot, rroot
+  replaceroot.lua                  line 11917  aliases: replacerootpart
+  clearcharappearance.lua          line 11932  aliases: clearchar, clrchar
+  equiptools.lua                   line 11936  aliases: -
+  unequiptools.lua                 line 11944  aliases: -
+  dupetools.lua                    line 11963  aliases: clonetools
+  touchinterests.lua               line 12017  aliases: touchinterest, firetouchinterests, firetouchinterest
+  fullbright.lua                   line 12053  aliases: fb, fullbrightness
+  loopfullbright.lua               line 12072  aliases: loopfb
+  unloopfullbright.lua             line 12089  aliases: unloopfb, unfb, unfullbright, unfullbrightness
+  ambient.lua                      line 12107  aliases: -
+  unambient.lua                    line 12124  aliases: -
+  day.lua                          line 12134  aliases: -
+  night.lua                        line 12138  aliases: -
+  time.lua                         line 12142  aliases: -
+  nofog.lua                        line 12147  aliases: -
+  brightness.lua                   line 12156  aliases: -
+  dncycle.lua                      line 12161  aliases: daynightcycle
+  undncycle.lua                    line 12177  aliases: stopdncycle
+  globalshadows.lua                line 12186  aliases: gshadows
+  unglobalshadows.lua              line 12190  aliases: ungshadows
+  restorelighting.lua              line 12196  aliases: rlighting
+  stun.lua                         line 12206  aliases: platformstand
+  unstun.lua                       line 12210  aliases: nostun, unplatformstand, noplatformstand
+  norotate.lua                     line 12214  aliases: noautorotate
+  unnorotate.lua                   line 12218  aliases: autorotate
+  enablestate.lua                  line 12222  aliases: -
+  disablestate.lua                 line 12230  aliases: -
+  drophats.lua                     line 12238  aliases: drophat
+  deletehats.lua                   line 12246  aliases: nohats, rhats
+  droptools.lua                    line 12258  aliases: droptool
+  droppabletools.lua               line 12272  aliases: -
+  reach.lua                        line 12291  aliases: -
+  boxreach.lua                     line 12323  aliases: -
+  unreach.lua                      line 12343  aliases: noreach, unboxreach
+  grippos.lua                      line 12353  aliases: -
+  usetools.lua                     line 12363  aliases: -
+  logs.lua                         line 12381  aliases: -
+  chatlogs.lua                     line 12389  aliases: clogs
+  joinlogs.lua                     line 12403  aliases: jlogs
+  chatlogswebhook.lua              line 12417  aliases: logswebhook
+  fling.lua                        line 12426  aliases: -
+  unfling.lua                      line 12459  aliases: nofling
+  togglefling.lua                  line 12477  aliases: -
+  flyfling.lua                     line 12485  aliases: -
+  unflyfling.lua                   line 12492  aliases: -
+  toggleflyfling.lua               line 12496  aliases: -
+  walkfling.lua                    line 12501  aliases: -
+  unwalkfling.lua                  line 12539  aliases: nowalkfling
+  togglewalkfling.lua              line 12544  aliases: -
+  invisfling.lua                   line 12548  aliases: -
+  clickfor.lua                     line 12597  aliases: -
+  unclickfor.lua                   line 12601  aliases: -
+  clicktype.lua                    line 12605  aliases: -
+  antifling.lua                    line 12610  aliases: -
+  unantifling.lua                  line 12628  aliases: -
+  toggleantifling.lua              line 12635  aliases: -
+  handlekill.lua                   line 12639  aliases: hkill
+  teleportwalk.lua                 line 12675  aliases: tpwalk
+  unteleportwalk.lua               line 12698  aliases: untpwalk
+  infpathtools.lua                 line 12704  aliases: -
+  uninfpathtools.lua               line 12735  aliases: -
+  spin.lua                         line 12742  aliases: -
+  unspin.lua                       line 12759  aliases: -
+  xray.lua                         line 12776  aliases: -
+  unxray.lua                       line 12781  aliases: noxray
+  togglexray.lua                   line 12786  aliases: -
+  loopxray.lua                     line 12791  aliases: -
+  unloopxray.lua                   line 12799  aliases: -
+  walltp.lua                       line 12806  aliases: -
+  unwalltp.lua                     line 12827  aliases: nowalltp
+  autoclick.lua                    line 12834  aliases: -
+  unautoclick.lua                  line 12862  aliases: noautoclick
+  mousesensitivity.lua             line 12867  aliases: ms
+  hovername.lua                    line 12873  aliases: -
+  unhovername.lua                  line 12929  aliases: nohovername
+  headsize.lua                     line 12937  aliases: -
+  hitbox.lua                       line 12956  aliases: -
+  hitboxes.lua                     line 12978  aliases: -
+  unhitboxes.lua                   line 12982  aliases: -
+  stareat.lua                      line 12986  aliases: stare
+  unstareat.lua                    line 13009  aliases: unstare, nostare, nostareat
+  rolewatch.lua                    line 13029  aliases: -
+  rolewatchstop.lua                line 13039  aliases: -
+  rolewatchleave.lua               line 13046  aliases: unrolewatch
+  staffwatch.lua                   line 13068  aliases: -
+  unstaffwatch.lua                 line 13096  aliases: -
+  findfriendgroups.lua             line 13151  aliases: -
+  removeterrain.lua                line 13175  aliases: rterrain, noterrain
+  clearnilinstances.lua            line 13179  aliases: nonilinstances, cni
+  destroyheight.lua                line 13189  aliases: dh
+  antivoid.lua                     line 13197  aliases: -
+  unantivoid.lua                   line 13209  aliases: noantivoid
+  fakeout.lua                      line 13216  aliases: -
+  trip.lua                         line 13252  aliases: -
+  removeads.lua                    line 13260  aliases: adblock
+  scare.lua                        line 13277  aliases: spook
+  alignmentkeys.lua                line 13296  aliases: -
+  unalignmentkeys.lua              line 13306  aliases: noalignmentkeys
+  ctrllock.lua                     line 13313  aliases: -
+  unctrllock.lua                   line 13327  aliases: -
+  listento.lua                     line 13341  aliases: -
+  unlistento.lua                   line 13357  aliases: -
+  jerk.lua                         line 13362  aliases: -
+  guiscale.lua                     line 13410  aliases: -
+  muteallvoices.lua                line 13429  aliases: muteallvcs
+  unmuteallvoices.lua              line 13433  aliases: unmuteallvcs
+  mutevc.lua                       line 13437  aliases: -
+  unmutevc.lua                     line 13444  aliases: -
+  phonebook.lua                    line 13451  aliases: call
+  freezeunanchored.lua             line 13488  aliases: freezeua
+  thawunanchored.lua               line 13535  aliases: thawua, unfreezeunanchored, unfreezeua
+  tpunanchored.lua                 line 13551  aliases: tpua
+  autokeypress.lua                 line 13654  aliases: keypress
+  unautokeypress.lua               line 13685  aliases: noautokeypress, unkeypress, nokeypress
+  addplugin.lua                    line 13690  aliases: plugin
+  removeplugin.lua                 line 13694  aliases: deleteplugin
+  reloadplugin.lua                 line 13698  aliases: -
+  addallplugins.lua                line 13705  aliases: loadallplugins
+  removecmd.lua                    line 13724  aliases: deletecmd
+  debug.lua                        line 13728  aliases: -
+
+Skipped addcmd (bukan string literal / dinamis):
+  line 5234: argumen nama bukan string literal
+  line 6496: argumen nama bukan string literal
+
+Warnings:
+  (tidak ada blok tidak seimbang)
+
+luac -p check:
+  OK        : 450
+  Luau-only : 16
+  Gagal     : 0
+  [luau] float.lua: /usr/bin/luac: commands/float.lua:30: syntax error near '-'
+  [luau] showwaypoints.lua: /usr/bin/luac: commands/showwaypoints.lua:34: syntax error near 'end'
+  [luau] savelogs.lua: /usr/bin/luac: commands/savelogs.lua:37: syntax error near '+'
+  [luau] clientantiteleport.lua: /usr/bin/luac: commands/clientantiteleport.lua:25: unexpected symbol near '`'
+  [luau] allowrejoin.lua: /usr/bin/luac: commands/allowrejoin.lua:11: unexpected symbol near '`'
+  [luau] freecamwaypoint.lua: /usr/bin/luac: commands/freecamwaypoint.lua:25: syntax error near 'end'
+  [luau] vehiclegoto.lua: /usr/bin/luac: commands/vehiclegoto.lua:11: unexpected symbol near 'if'
+  [luau] pathfindwalkto.lua: /usr/bin/luac: commands/pathfindwalkto.lua:43: syntax error near 'end'
+  [luau] unlight.lua: /usr/bin/luac: commands/unlight.lua:15: syntax error near 'end'
+  [luau] hatspin.lua: /usr/bin/luac: commands/hatspin.lua:20: syntax error near 'end'
+  [luau] unhatspin.lua: /usr/bin/luac: commands/unhatspin.lua:19: syntax error near 'end'
+  [luau] findfriendgroups.lua: /usr/bin/luac: commands/findfriendgroups.lua:20: syntax error near 'end'
+  [luau] jerk.lua: /usr/bin/luac: commands/jerk.lua:36: syntax error near 'end'
+  [luau] mutevc.lua: /usr/bin/luac: commands/mutevc.lua:11: syntax error near 'end'
+  [luau] unmutevc.lua: /usr/bin/luac: commands/unmutevc.lua:11: syntax error near 'end'
+  [luau] tpunanchored.lua: /usr/bin/luac: commands/tpunanchored.lua:17: syntax error near 'end'
