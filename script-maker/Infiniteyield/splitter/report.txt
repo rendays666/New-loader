@@ -1,6 +1,6 @@
 Infinite Yield split report
 ============================
-Source        : original/source
+Source        : original/source.txt
 Output        : commands
 Commands found: 464
 Files written : 464

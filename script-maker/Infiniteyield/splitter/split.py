@@ -584,22 +584,22 @@ def clean_generated(output_dir: Path) -> None:
             path.unlink()
 
 
-def command_header(command: dict) -> str:
+def command_header(command: dict, source_label: str) -> str:
     aliases = ", ".join(command["aliases"]) if command["aliases"] else "(tanpa alias)"
     return "\n".join([
         MARKER,
         "-- Command : " + command["name"],
         "-- Aliases : " + aliases,
-        "-- Source  : original/source:" + str(command["line"]),
+        "-- Source  : " + source_label + ":" + str(command["line"]),
         "-- License : MIT - refactored from EdgeIY/infiniteyield",
         "",
     ])
 
 
-def command_module(command: dict) -> str:
+def command_module(command: dict, source_label: str) -> str:
     aliases = ", ".join(lua_quote(alias) for alias in command["aliases"])
     return (
-        command_header(command)
+        command_header(command, source_label)
         + "return {\n"
         + "\tname = " + lua_quote(command["name"]) + ",\n"
         + "\taliases = {" + aliases + "},\n"
@@ -805,9 +805,19 @@ def main() -> int:
     source_path: Path = args.source
     output_dir: Path = args.out
 
+    # Dukung dua nama file: original/source (sesuai README) atau
+    # original/source.txt (nama yang sering dipakai saat upload lewat GitHub).
+    if source_path == DEFAULT_SOURCE and not source_path.is_file():
+        fallback = PROJECT_DIR / "original" / "source.txt"
+        if fallback.is_file():
+            source_path = fallback
+
     if not source_path.is_file():
         print("ERROR: file source tidak ditemukan: {}".format(source_path), file=sys.stderr)
-        print("Taruh file `source` dari EdgeIY/infiniteyield di folder original/.", file=sys.stderr)
+        print(
+            "Taruh file `source` (atau `source.txt`) dari EdgeIY/infiniteyield di folder original/.",
+            file=sys.stderr,
+        )
         return 2
 
     try:
@@ -877,9 +887,10 @@ def main() -> int:
         return 1
 
     # Tulis modul command.
+    source_label = display_path(source_path)
     for command in commands:
         path = output_dir / (command["file"] + ".lua")
-        path.write_text(command_module(command), encoding="utf-8")
+        path.write_text(command_module(command, source_label), encoding="utf-8")
 
     # Tulis index yang me-require semua modul.
     (output_dir / "index.lua").write_text(index_module(commands), encoding="utf-8")

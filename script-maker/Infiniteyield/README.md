@@ -19,7 +19,7 @@ menjual atau mendistribusikan ulang karya orang lain.
 
 ```
 Infiniteyield/
-├── original/          # taruh file `source` asli di sini (tidak di-commit)
+├── original/          # source asli; `source.txt` ikut repo, `source` diabaikan
 │   └── .gitkeep
 ├── splitter/
 │   ├── split.py       # program splitter (Python 3, tanpa dependency)
@@ -42,6 +42,9 @@ Infiniteyield/
    ```
    original/source
    ```
+
+   Nama `original/source.txt` juga diterima; splitter mendeteksinya otomatis
+   kalau `original/source` tidak ada.
 
 2. Jalankan splitter dari folder `script-maker/Infiniteyield/`:
 
@@ -143,5 +146,6 @@ atribusi ini dan jangan mengklaim kode upstream sebagai milik sendiri.
   dicatat di `splitter/report.txt`.
 - Hasil split bukan program mandiri. Ini bahan belajar dan potongan
   kode, bukan pengganti Infinite Yield.
-- File `original/source` tidak di-commit karena ukurannya besar dan
-  bukan milik repo ini.
+- File `original/source` diabaikan oleh `.gitignore`. Di repo ini file
+  yang di-upload bernama `original/source.txt`, jadi file tersebut ikut
+  ter-commit; ganti namanya menjadi `source` kalau ingin diabaikan.
