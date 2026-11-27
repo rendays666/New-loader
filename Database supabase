@@ -1,8 +1,8 @@
 -- ╔══════════════════════════════════════════════════════════════════╗
--- ║  REN TRACKER v6.3 — Clean (no GUI, silent init)                   ║
+-- ║  REN TRACKER v6.4 — Clean (no GUI, silent init)                   ║
 -- ║  • Instance lama otomatis dimatikan saat re-execute (anti lag)    ║
 -- ║  • Error Supabase tampil di console (warn) + retry otomatis       ║
--- ║  • Nama game di-cache (GetProductInfo tidak dipanggil berulang)   ║
+-- ║  • Nama map selalu Inggris (API publik + Accept-Language en-US)  ║
 -- ╚══════════════════════════════════════════════════════════════════╝
 
 local genv = (getgenv and getgenv()) or _G
@@ -109,12 +109,47 @@ genv.REN_TRACKER_STOP = function()
 end
 
 local cachedGameName
+local nameAttempts = 0
+
+-- Nama map selalu versi Inggris. MarketplaceService:GetProductInfo mengikuti bahasa
+-- client tiap user, jadi map yang sama bisa masuk dengan nama berbeda-beda.
+-- Solusi: ambil dari API publik Roblox dengan header Accept-Language: en-US.
+local function fetchEnglishName()
+    local universeId = game.GameId
+    if not universeId or universeId == 0 then return nil end
+    local ok, res = pcall(rawRequest, {
+        Url = "https://games.roblox.com/v1/games?universeIds=" .. universeId,
+        Method = "GET",
+        Headers = { ["Accept-Language"] = "en-US,en;q=0.9" },
+    })
+    if not ok or type(res) ~= "table" or tonumber(res.StatusCode) ~= 200 then
+        dbg("EnglishName", ok and ("HTTP " .. tostring(res and res.StatusCode)) or tostring(res))
+        return nil
+    end
+    local ok2, data = pcall(function() return HttpService:JSONDecode(res.Body) end)
+    if ok2 and type(data) == "table" and data.data and data.data[1]
+       and type(data.data[1].name) == "string" and data.data[1].name ~= "" then
+        return data.data[1].name
+    end
+    return nil
+end
+
 local function getGameName()
     if cachedGameName then return cachedGameName end
+    -- Coba nama Inggris (maks 3x percobaan per sesi supaya tidak spam request)
+    if nameAttempts < 3 then
+        nameAttempts = nameAttempts + 1
+        local en = fetchEnglishName()
+        if en then
+            cachedGameName = en
+            return en
+        end
+    end
+    -- Cadangan: GetProductInfo (bisa berbahasa lokal, tidak di-cache supaya API dicoba lagi)
     local ok, info = pcall(function() return Marketplace:GetProductInfo(game.PlaceId) end)
     if ok and type(info) == "table" and info.Name then
-        cachedGameName = info.Name
-        return cachedGameName
+        if nameAttempts >= 3 then cachedGameName = info.Name end
+        return info.Name
     end
     return "Unknown Game"
 end
@@ -210,4 +245,4 @@ task.spawn(function()
     end
 end)
 
-print("[REN] Tracker v6.3 aktif via " .. methodName)
+print("[REN] Tracker v6.4 aktif via " .. methodName)
